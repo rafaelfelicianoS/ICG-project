@@ -62,6 +62,7 @@ const tempReleaseAnchor = new THREE.Vector3();
 const tempVector = new THREE.Vector3();
 const tempVectorB = new THREE.Vector3();
 const tempVectorC = new THREE.Vector3();
+const tempNetImpact = new THREE.Vector3();
 const tempVec2 = new THREE.Vector2();
 const tempVec2B = new THREE.Vector2();
 const worldUp = new THREE.Vector3(0, 1, 0);
@@ -102,12 +103,13 @@ trajectoryLine.visible = false;
 scene.add(trajectoryLine);
 
 ballBody.addEventListener("collide", (event) => {
-  if (rimSoundCooldown > 0) {
-    return;
-  }
   if (event.body && event.body.kind === "rim") {
-    audio.playRim();
-    rimSoundCooldown = 0.05;
+    if (rimSoundCooldown <= 0) {
+      audio.playRim();
+      rimSoundCooldown = 0.05;
+    }
+    tempNetImpact.set(ballBody.position.x, ballBody.position.y, ballBody.position.z);
+    court.disturbNet(event.body.hoopId, tempNetImpact, 0.11);
   }
 });
 
@@ -140,6 +142,7 @@ function update(delta) {
   }
 
   dayNight.update(delta);
+  court.update(delta);
   const dayNightState = dayNight.getState();
   ui.setDayNightBadge(dayNight.getMode(), dayNightState.transitioning);
 
@@ -174,6 +177,9 @@ function update(delta) {
   updateBallOwnership(delta, isMoving);
 
   physics.world.step(PHYSICS.fixedTimeStep, delta, PHYSICS.maxSubSteps);
+  if (!hasBall && !recoverySequence) {
+    court.interactBallWithNets(ballBody, BALL.radius, delta);
+  }
 
   if (!hasBall && !recoverySequence) {
     syncMeshWithBody(ballMesh, ballBody);
@@ -481,6 +487,9 @@ function registerScore(shotRecord, hoop) {
   tempVector.copy(hoop.rimCenter);
   tempVector.y += 0.35;
   ui.showScoreFeedback(`+${shotValue}`, tempVector, followCamera.camera);
+  tempNetImpact.copy(hoop.rimCenter);
+  tempNetImpact.y -= 0.2;
+  court.disturbNet(hoop.id, tempNetImpact, 0.2);
   ui.flashSuccess();
   audio.playBasket();
   celebrationTimer = 0.75;

@@ -1,5 +1,6 @@
 import { COURT, getBackboardZ, getRimCenter } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
+import { createHoopNet } from "./net.js";
 
 const sideLineX = COURT.halfWidth - 0.9;
 
@@ -280,14 +281,8 @@ function createHoopGroup(sign) {
   rim.castShadow = true;
   hoop.add(rim);
 
-  const net = new THREE.Mesh(
-    new THREE.ConeGeometry(COURT.rimRadius * 0.85, 0.62, 16, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xf1f5f8, wireframe: true, opacity: 0.7, transparent: true })
-  );
-  net.position.set(rimCenter.x, rimCenter.y - 0.32, rimCenter.z);
-  net.rotation.x = Math.PI;
-  net.rotation.y = Math.PI / 16;
-  hoop.add(net);
+  const net = createHoopNet(rimCenter, COURT.rimRadius);
+  hoop.add(net.group);
 
   return {
     group: hoop,
@@ -295,6 +290,7 @@ function createHoopGroup(sign) {
     side: sign > 0 ? "north" : "south",
     rimCenter: new THREE.Vector3(rimCenter.x, rimCenter.y, rimCenter.z),
     backboardCenter: new THREE.Vector3(0, COURT.backboardCenterHeight, backboardZ),
+    net,
   };
 }
 
@@ -373,10 +369,63 @@ export function createCourt(scene) {
 
   scene.add(group);
 
+  const hoopById = new Map([
+    [hoopNorth.id, hoopNorth],
+    [hoopSouth.id, hoopSouth],
+  ]);
+  const tempBallPosition = new THREE.Vector3();
+  const tempBallVelocity = new THREE.Vector3();
+
+  function update(delta) {
+    for (const hoop of hoopById.values()) {
+      hoop.net.update(delta);
+    }
+  }
+
+  function disturbNet(hoopId, worldPosition, strength = 0.1) {
+    const hoop = hoopById.get(hoopId);
+    if (!hoop || !worldPosition) {
+      return;
+    }
+    hoop.net.disturb(worldPosition, strength);
+  }
+
+  function interactBallWithNets(ballBody, ballRadius, delta) {
+    if (!ballBody || ballBody.mass <= 0) {
+      return false;
+    }
+
+    tempBallPosition.set(ballBody.position.x, ballBody.position.y, ballBody.position.z);
+    tempBallVelocity.set(ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z);
+
+    let touched = false;
+    for (const hoop of hoopById.values()) {
+      const yMin = hoop.rimCenter.y - 1.25;
+      const yMax = hoop.rimCenter.y + 0.25;
+      if (tempBallPosition.y < yMin || tempBallPosition.y > yMax) {
+        continue;
+      }
+
+      if (hoop.net.collideBall(tempBallPosition, ballRadius, tempBallVelocity, delta)) {
+        touched = true;
+      }
+    }
+
+    if (touched) {
+      ballBody.position.set(tempBallPosition.x, tempBallPosition.y, tempBallPosition.z);
+      ballBody.velocity.set(tempBallVelocity.x, tempBallVelocity.y, tempBallVelocity.z);
+    }
+
+    return touched;
+  }
+
   return {
     group,
     hoops: [hoopNorth, hoopSouth],
     lightPoleAnchors,
+    update,
+    disturbNet,
+    interactBallWithNets,
     bounds: {
       minX: -COURT.halfWidth + 0.55,
       maxX: COURT.halfWidth - 0.55,
