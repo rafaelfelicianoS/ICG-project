@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini-Jogo de Basquetebol 3D</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div id="hud">
+      <div id="top-score">
+        <span>PONTOS</span>
+        <strong id="score-value">0</strong>
+      </div>
+
+      <div id="stats-panel">
+        <div id="shots-made-value">Cestos: 0/0</div>
+        <div id="fg-value">FG: 0%</div>
+        <div id="two-point-value">2PT: 0</div>
+        <div id="three-point-value">3PT: 0</div>
+      </div>
+
+      <div id="zone-indicator">ZONA DE 2 PONTOS</div>
+
+      <div id="power-wrapper" class="hidden">
+        <div id="power-bar">
+          <div id="perfect-zone"></div>
+          <div id="power-fill"></div>
+        </div>
+        <div id="perfect-text">PERFECT!</div>
+      </div>
+
+      <div id="feedback-layer"></div>
+      <div id="flash-overlay"></div>
+
+      <div id="controls-panel">
+        <h2>Controlos (H para mostrar/esconder)</h2>
+        <p><strong>WASD</strong>: mover</p>
+        <p><strong>Q/E</strong>: rodar jogador</p>
+        <p><strong>Botão Esquerdo</strong>: segurar para carregar / largar para lançar</p>
+        <p><strong>R</strong>: recuperar bola manualmente</p>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
