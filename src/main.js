@@ -79,7 +79,6 @@ let recoverySequence = null;
 let activeShot = null;
 let celebrationTimer = 0;
 let antiDoubleTrigger = 0;
-let timeSinceRelease = 0;
 let rimSoundCooldown = 0;
 let lastMovementState = false;
 let lastCourtSide = playerPosition.z >= 0 ? 1 : -1;
@@ -199,17 +198,6 @@ function update(delta) {
 
   previousBallPosition.copy(ballMesh.position);
 
-  if (!hasBall && !recoverySequence && (!shootSequence || shootSequence.released)) {
-    timeSinceRelease += delta;
-    const speed = ballBody.velocity.length();
-    const shouldAutoRecover =
-      timeSinceRelease >= BALL.autoRecoverTimeout ||
-      (timeSinceRelease > 0.8 && speed < BALL.recoverSpeedThreshold);
-    if (shouldAutoRecover) {
-      recoverBallToHands("auto");
-    }
-  }
-
   updateStateMachine();
   followCamera.update(playerPosition, PLAYER.followOffset, delta);
 }
@@ -265,8 +253,7 @@ function handleShootingInput(delta, nearestHoop) {
 
   if (shotCharge.isCharging && !shootSequence) {
     const power = updateShotCharge(shotCharge, delta);
-    player.getReleaseAnchor(tempReleaseAnchor);
-    const distanceToHoop = tempReleaseAnchor.distanceTo(nearestHoop.rimCenter);
+    const distanceToHoop = ballMesh.position.distanceTo(nearestHoop.rimCenter);
     const timingWindow = getShotTimingWindow(distanceToHoop, SHOT);
 
     ui.setTimingWindow(timingWindow.min, timingWindow.max);
@@ -291,13 +278,10 @@ function beginShot(power, hoop, timingWindow) {
   stats.attempts += 1;
   ui.updateStats(stats);
 
-  player.getReleaseAnchor(tempReleaseAnchor);
-  const velocity = computeShotVelocity(tempReleaseAnchor, hoop.rimCenter, power, SHOT, timingWindow);
-
   shootSequence = {
     power,
     targetHoopId: hoop.id,
-    velocity,
+    timingWindow,
     timer: 0,
     releaseTime: 0.2,
     duration: 0.64,
@@ -330,9 +314,10 @@ function updateShootSequence(delta) {
     if (shootSequence.timer >= shootSequence.releaseTime) {
       shootSequence.released = true;
       hasBall = false;
-      timeSinceRelease = 0;
-      player.getReleaseAnchor(tempReleaseAnchor);
-      physics.activateBallBody(ballBody, shootSequence.velocity, tempReleaseAnchor);
+      const targetHoop = findHoopById(shootSequence.targetHoopId);
+      const origin = ballMesh.position;
+      const velocity = computeShotVelocity(origin, targetHoop.rimCenter, shootSequence.power, SHOT, shootSequence.timingWindow);
+      physics.activateBallBody(ballBody, velocity, origin);
       syncMeshWithBody(ballMesh, ballBody);
       previousBallPosition.copy(ballMesh.position);
     }
@@ -353,16 +338,16 @@ function updateShootSequence(delta) {
 }
 
 function updateTrajectoryPreview(power, hoop, timingWindow) {
-  player.getReleaseAnchor(tempReleaseAnchor);
-  const velocity = computeShotVelocity(tempReleaseAnchor, hoop.rimCenter, power, SHOT, timingWindow);
+  const origin = ballMesh.position;
+  const velocity = computeShotVelocity(origin, hoop.rimCenter, power, SHOT, timingWindow);
   const points = [];
   const maxSamples = 50;
 
   for (let i = 0; i < maxSamples; i += 1) {
     const t = i * 0.045;
-    const x = tempReleaseAnchor.x + velocity.x * t;
-    const y = tempReleaseAnchor.y + velocity.y * t - 0.5 * 9.82 * t * t;
-    const z = tempReleaseAnchor.z + velocity.z * t;
+    const x = origin.x + velocity.x * t;
+    const y = origin.y + velocity.y * t - 0.5 * 9.82 * t * t;
+    const z = origin.z + velocity.z * t;
     if (y < 0 && i > 5) {
       break;
     }
@@ -438,7 +423,6 @@ function updateRecoverSequence(delta) {
     recoverySequence = null;
     shootSequence = null;
     activeShot = null;
-    timeSinceRelease = 0;
     player.setShootingPose(0);
   }
 }
