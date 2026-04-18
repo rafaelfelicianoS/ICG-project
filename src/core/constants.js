@@ -10,8 +10,8 @@ export const COURT = {
   freeThrowDistanceFromBaseline: 4.6,
   threePointRadius: 6.75,
   hoopHeight: 3.05,
-  rimRadius: 0.225,
-  rimTubeRadius: 0.02,
+  rimRadius: 0.34,
+  rimTubeRadius: 0.03,
   backboardWidth: 1.83,
   backboardHeight: 1.07,
   backboardDepth: 0.05,
@@ -25,15 +25,15 @@ export const PLAYER = {
   moveSpeed: 5,
   rotationSpeed: 2,
   radius: 0.45,
-  followOffset: { x: 0, y: 2.25, z: -3.8 },
+  followOffset: { x: 0, y: 3.2, z: -5.5 },
 };
 
 export const BALL = {
-  radius: 0.12,
+  radius: 0.18,
   mass: 0.6,
-  linearDamping: 0.3,
+  linearDamping: 0.02,
   angularDamping: 0.3,
-  dribbleMinY: 0.05,
+  dribbleMinY: 0.18,
   dribbleMaxY: 0.9,
   dribbleBaseFrequency: 1.5,
   dribbleMoveFrequency: 2,
@@ -46,7 +46,7 @@ export const PHYSICS = {
   fixedTimeStep: 1 / 60,
   maxSubSteps: 3,
   rimSegments: 12,
-  rimSegmentRadius: 0.02,
+  rimSegmentRadius: 0.03,
 };
 
 export const SHOT = {
@@ -55,6 +55,14 @@ export const SHOT = {
   perfectMax: 0.88,
   idealAngleDeg: 50,
   maxHorizontalErrorDeg: 3,
+  nearDistance: 3,
+  farDistance: 8.5,
+  perfectWindowNear: 0.17,
+  perfectWindowFar: 0.06,
+  maxHorizontalErrorNearDeg: 2.2,
+  maxHorizontalErrorFarDeg: 6.2,
+  idealSpeedBoostNear: 1.03,
+  idealSpeedBoostFar: 1.0,
 };
 
 export const PLAYER_STATES = Object.freeze({

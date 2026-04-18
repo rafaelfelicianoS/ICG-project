@@ -88,6 +88,20 @@ body {
   letter-spacing: 0.03rem;
 }
 
+#day-night-badge {
+  position: absolute;
+  top: 4.2rem;
+  right: 1rem;
+  padding: 0.35rem 0.68rem;
+  border-radius: 999px;
+  background: rgba(13, 27, 42, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: 0.72rem;
+  letter-spacing: 0.09rem;
+  text-transform: uppercase;
+  color: #f5f8ff;
+}
+
 #power-wrapper {
   position: absolute;
   bottom: 2rem;
@@ -97,6 +111,13 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+#timing-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.12rem;
+  color: var(--muted);
+  text-transform: uppercase;
 }
 
 #power-wrapper.hidden {
@@ -245,6 +266,13 @@ body {
     bottom: 5.4rem;
     right: 0.65rem;
     font-size: 0.76rem;
+  }
+
+  #day-night-badge {
+    top: auto;
+    bottom: 3.65rem;
+    right: 0.65rem;
+    font-size: 0.66rem;
   }
 
   #power-bar {

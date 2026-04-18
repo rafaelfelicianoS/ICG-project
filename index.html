@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt">
   <head>
     <meta charset="UTF-8" />
@@ -23,8 +23,10 @@
       </div>
 
       <div id="zone-indicator">ZONA DE 2 PONTOS</div>
+      <div id="day-night-badge">DIA</div>
 
       <div id="power-wrapper" class="hidden">
+        <div id="timing-label">PRECISAO</div>
         <div id="power-bar">
           <div id="perfect-zone"></div>
           <div id="power-fill"></div>
@@ -37,9 +39,9 @@
 
       <div id="controls-panel">
         <h2>Controlos (H para mostrar/esconder)</h2>
-        <p><strong>WASD</strong>: mover</p>
-        <p><strong>Q/E</strong>: rodar jogador</p>
-        <p><strong>Botão Esquerdo</strong>: segurar para carregar / largar para lançar</p>
+        <p><strong>WASD</strong>: mover (relativo a camera)</p>
+        <p><strong>Botao Esquerdo</strong>: segurar para carregar / largar para lancar</p>
+        <p><strong>T</strong>: alternar dia/noite</p>
         <p><strong>R</strong>: recuperar bola manualmente</p>
       </div>
     </div>
@@ -48,3 +50,4 @@
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
+

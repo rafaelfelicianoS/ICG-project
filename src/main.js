@@ -11,12 +11,14 @@ import { InputController } from "./core/input.js";
 import { createHUD } from "./core/ui.js";
 import { createAudioSystem } from "./core/audio.js";
 import { createCourt } from "./world/court.js";
+import { createDayNightController } from "./world/dayNight.js";
 import { createPlayer } from "./world/player.js";
 import { createBasketballMesh, createDribbleState, updateDribble } from "./world/ball.js";
 import { createPhysicsWorld, syncMeshWithBody } from "./physics/world.js";
 import {
   computeShotVelocity,
   createShotChargeState,
+  getShotTimingWindow,
   releaseShot,
   startShotCharge,
   updateShotCharge,
@@ -42,9 +44,8 @@ const ui = createHUD();
 const audio = createAudioSystem();
 const clock = new THREE.Clock();
 
-addArenaLights(scene);
-
 const court = createCourt(scene);
+const dayNight = createDayNightController(scene, court.lightPoleAnchors);
 const player = createPlayer(scene);
 const ballMesh = createBasketballMesh(scene);
 const dribbleState = createDribbleState();
@@ -60,8 +61,10 @@ const tempBallAnchor = new THREE.Vector3();
 const tempReleaseAnchor = new THREE.Vector3();
 const tempVector = new THREE.Vector3();
 const tempVectorB = new THREE.Vector3();
+const tempVectorC = new THREE.Vector3();
 const tempVec2 = new THREE.Vector2();
 const tempVec2B = new THREE.Vector2();
+const worldUp = new THREE.Vector3(0, 1, 0);
 
 player.getBallAnchor(tempBallAnchor);
 ballMesh.position.copy(tempBallAnchor);
@@ -78,6 +81,7 @@ let antiDoubleTrigger = 0;
 let timeSinceRelease = 0;
 let rimSoundCooldown = 0;
 let lastMovementState = false;
+let lastCourtSide = playerPosition.z >= 0 ? 1 : -1;
 const previousBallPosition = new THREE.Vector3().copy(ballMesh.position);
 
 const stats = {
@@ -88,6 +92,8 @@ const stats = {
   attempts: 0,
 };
 ui.updateStats(stats);
+ui.setTimingLabel("PRECISAO");
+ui.setDayNightBadge(dayNight.getMode(), dayNight.getState().transitioning);
 
 const trajectoryMaterial = new THREE.LineBasicMaterial({ color: 0x49d17c, transparent: true, opacity: 0.9 });
 const trajectoryGeometry = new THREE.BufferGeometry();
@@ -125,9 +131,17 @@ function update(delta) {
     ui.toggleControlsPanel();
   }
 
+  if (input.wasKeyPressed("KeyT")) {
+    dayNight.toggle();
+  }
+
   if (input.wasKeyPressed("KeyR")) {
     recoverBallToHands("manual");
   }
+
+  dayNight.update(delta);
+  const dayNightState = dayNight.getState();
+  ui.setDayNightBadge(dayNight.getMode(), dayNightState.transitioning);
 
   if (antiDoubleTrigger > 0) {
     antiDoubleTrigger = Math.max(0, antiDoubleTrigger - delta);
@@ -139,6 +153,12 @@ function update(delta) {
   const canMove = !shootSequence && !shotCharge.isCharging && !recoverySequence && celebrationTimer <= 0;
   const isMoving = updatePlayerMovement(delta, canMove);
   lastMovementState = isMoving;
+
+  const newCourtSide = playerPosition.z === 0 ? lastCourtSide : Math.sign(playerPosition.z);
+  if (newCourtSide !== lastCourtSide) {
+    followCamera.requestHalfCourtFlip();
+    lastCourtSide = newCourtSide;
+  }
 
   player.setPositionAndYaw(playerPosition, playerYaw);
   updatePlayerPose(delta);
@@ -185,7 +205,7 @@ function update(delta) {
   }
 
   updateStateMachine();
-  followCamera.update(playerPosition, playerYaw, PLAYER.followOffset, delta);
+  followCamera.update(playerPosition, PLAYER.followOffset, delta);
 }
 
 function updatePlayerMovement(delta, canMove) {
@@ -193,22 +213,27 @@ function updatePlayerMovement(delta, canMove) {
     return false;
   }
 
-  const rotationInput = (input.isDown("KeyE") ? 1 : 0) - (input.isDown("KeyQ") ? 1 : 0);
-  playerYaw += rotationInput * PLAYER.rotationSpeed * delta;
-
-  const moveX = (input.isDown("KeyD") ? 1 : 0) - (input.isDown("KeyA") ? 1 : 0);
+  const moveX = (input.isDown("KeyA") ? 1 : 0) - (input.isDown("KeyD") ? 1 : 0);
   const moveZ = (input.isDown("KeyW") ? 1 : 0) - (input.isDown("KeyS") ? 1 : 0);
   const isMoving = moveX !== 0 || moveZ !== 0;
   if (!isMoving) {
     return false;
   }
 
-  tempVector.set(Math.sin(playerYaw), 0, Math.cos(playerYaw));
-  tempVectorB.set(Math.cos(playerYaw), 0, -Math.sin(playerYaw));
-  tempVector.multiplyScalar(moveZ);
-  tempVectorB.multiplyScalar(moveX);
-  tempVector.add(tempVectorB).normalize().multiplyScalar(PLAYER.moveSpeed * delta);
-  playerPosition.add(tempVector);
+  followCamera.getForwardXZ(playerPosition, tempVector);
+
+  tempVectorB.copy(tempVector).cross(worldUp).normalize();
+
+  tempVectorC.copy(tempVector).multiplyScalar(moveZ);
+  tempVectorC.addScaledVector(tempVectorB, moveX);
+  tempVectorC.normalize();
+
+  const targetYaw = Math.atan2(tempVectorC.x, tempVectorC.z);
+  const angleDelta = Math.atan2(Math.sin(targetYaw - playerYaw), Math.cos(targetYaw - playerYaw));
+  const turnAlpha = 1 - Math.exp(-delta * 12);
+  playerYaw += angleDelta * turnAlpha;
+
+  playerPosition.addScaledVector(tempVectorC, PLAYER.moveSpeed * delta);
 
   playerPosition.x = THREE.MathUtils.clamp(playerPosition.x, court.bounds.minX, court.bounds.maxX);
   playerPosition.z = THREE.MathUtils.clamp(playerPosition.z, court.bounds.minZ, court.bounds.maxZ);
@@ -234,14 +259,19 @@ function handleShootingInput(delta, nearestHoop) {
 
   if (shotCharge.isCharging && !shootSequence) {
     const power = updateShotCharge(shotCharge, delta);
+    player.getReleaseAnchor(tempReleaseAnchor);
+    const distanceToHoop = tempReleaseAnchor.distanceTo(nearestHoop.rimCenter);
+    const timingWindow = getShotTimingWindow(distanceToHoop, SHOT);
+
+    ui.setTimingWindow(timingWindow.min, timingWindow.max);
     ui.setPower(power, true);
-    const perfectNow = power >= SHOT.perfectMin && power <= SHOT.perfectMax;
+    const perfectNow = power >= timingWindow.min && power <= timingWindow.max;
     ui.setPerfectActive(perfectNow);
-    updateTrajectoryPreview(power, nearestHoop);
+    updateTrajectoryPreview(power, nearestHoop, timingWindow);
 
     if (input.wasPointerReleased()) {
       const releasedPower = releaseShot(shotCharge);
-      beginShot(releasedPower, nearestHoop);
+      beginShot(releasedPower, nearestHoop, timingWindow);
     }
   } else if (!shootSequence) {
     ui.setPower(0, false);
@@ -251,12 +281,12 @@ function handleShootingInput(delta, nearestHoop) {
 
 }
 
-function beginShot(power, hoop) {
+function beginShot(power, hoop, timingWindow) {
   stats.attempts += 1;
   ui.updateStats(stats);
 
   player.getReleaseAnchor(tempReleaseAnchor);
-  const velocity = computeShotVelocity(tempReleaseAnchor, hoop.rimCenter, power, SHOT);
+  const velocity = computeShotVelocity(tempReleaseAnchor, hoop.rimCenter, power, SHOT, timingWindow);
 
   shootSequence = {
     power,
@@ -316,9 +346,9 @@ function updateShootSequence(delta) {
   }
 }
 
-function updateTrajectoryPreview(power, hoop) {
+function updateTrajectoryPreview(power, hoop, timingWindow) {
   player.getReleaseAnchor(tempReleaseAnchor);
-  const velocity = computeShotVelocity(tempReleaseAnchor, hoop.rimCenter, power, SHOT);
+  const velocity = computeShotVelocity(tempReleaseAnchor, hoop.rimCenter, power, SHOT, timingWindow);
   const points = [];
   const maxSamples = 50;
 
@@ -335,9 +365,9 @@ function updateTrajectoryPreview(power, hoop) {
 
   trajectoryGeometry.setFromPoints(points);
 
-  if (power >= SHOT.perfectMin && power <= SHOT.perfectMax) {
+  if (power >= timingWindow.min && power <= timingWindow.max) {
     trajectoryMaterial.color.set(0x49d17c);
-  } else if (power < SHOT.perfectMin) {
+  } else if (power < timingWindow.min) {
     trajectoryMaterial.color.set(0xf5b700);
   } else {
     trajectoryMaterial.color.set(0xe63946);
@@ -473,35 +503,4 @@ function findNearestHoop(position) {
 
 function findHoopById(hoopId) {
   return court.hoops.find((hoop) => hoop.id === hoopId);
-}
-
-function addArenaLights(targetScene) {
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-  targetScene.add(ambient);
-
-  const hemisphere = new THREE.HemisphereLight(0xcce4ff, 0x283a46, 0.28);
-  targetScene.add(hemisphere);
-
-  const positions = [
-    [COURT.halfWidth + 4, 11.5, COURT.halfLength + 4],
-    [-COURT.halfWidth - 4, 11.5, COURT.halfLength + 4],
-    [COURT.halfWidth + 4, 11.5, -COURT.halfLength - 4],
-    [-COURT.halfWidth - 4, 11.5, -COURT.halfLength - 4],
-  ];
-
-  positions.forEach((pos) => {
-    const dir = new THREE.DirectionalLight(0xffffff, 0.64);
-    dir.position.set(pos[0], pos[1], pos[2]);
-    dir.target.position.set(0, 0, 0);
-    dir.castShadow = true;
-    dir.shadow.mapSize.set(1024, 1024);
-    dir.shadow.camera.left = -16;
-    dir.shadow.camera.right = 16;
-    dir.shadow.camera.top = 16;
-    dir.shadow.camera.bottom = -16;
-    dir.shadow.camera.near = 0.5;
-    dir.shadow.camera.far = 40;
-    targetScene.add(dir);
-    targetScene.add(dir.target);
-  });
 }

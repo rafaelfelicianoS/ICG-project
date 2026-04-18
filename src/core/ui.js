@@ -6,11 +6,14 @@ export function createHUD() {
   const threePointValue = document.getElementById("three-point-value");
   const zoneIndicator = document.getElementById("zone-indicator");
   const powerWrapper = document.getElementById("power-wrapper");
+  const timingLabel = document.getElementById("timing-label");
+  const perfectZone = document.getElementById("perfect-zone");
   const powerFill = document.getElementById("power-fill");
   const perfectText = document.getElementById("perfect-text");
   const feedbackLayer = document.getElementById("feedback-layer");
   const flashOverlay = document.getElementById("flash-overlay");
   const controlsPanel = document.getElementById("controls-panel");
+  const dayNightBadge = document.getElementById("day-night-badge");
 
   function powerColor(power) {
     if (power < 0.5) {
@@ -39,6 +42,22 @@ export function createHUD() {
 
   function setPerfectActive(active) {
     perfectText.classList.toggle("active", active);
+  }
+
+  function setTimingLabel(text = "PRECISAO") {
+    if (timingLabel) {
+      timingLabel.textContent = text;
+    }
+  }
+
+  function setTimingWindow(min, max) {
+    if (!perfectZone) {
+      return;
+    }
+    const clampedMin = Math.max(0, Math.min(1, min));
+    const clampedMax = Math.max(clampedMin, Math.min(1, max));
+    perfectZone.style.left = `${clampedMin * 100}%`;
+    perfectZone.style.width = `${(clampedMax - clampedMin) * 100}%`;
   }
 
   function updateStats(stats) {
@@ -80,13 +99,33 @@ export function createHUD() {
     controlsPanel.classList.toggle("hidden");
   }
 
+  function setDayNightBadge(mode, transitioning) {
+    if (!dayNightBadge) {
+      return;
+    }
+
+    dayNightBadge.textContent = transitioning ? "TRANSICAO" : mode;
+    if (transitioning) {
+      dayNightBadge.style.background = "rgba(82, 49, 106, 0.72)";
+      return;
+    }
+    if (mode === "NOITE") {
+      dayNightBadge.style.background = "rgba(10, 10, 26, 0.82)";
+    } else {
+      dayNightBadge.style.background = "rgba(26, 68, 124, 0.72)";
+    }
+  }
+
   return {
     setPower,
     setPerfectActive,
+    setTimingLabel,
+    setTimingWindow,
     updateStats,
     setZoneIndicator,
     showScoreFeedback,
     flashSuccess,
     toggleControlsPanel,
+    setDayNightBadge,
   };
 }

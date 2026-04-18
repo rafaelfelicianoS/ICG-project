@@ -1,8 +1,19 @@
 import { SHOT } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
 
-function randomBetween(min, max) {
-  return min + Math.random() * (max - min);
+function getDistanceDifficulty(distance, tuning = SHOT) {
+  const range = Math.max(0.001, tuning.farDistance - tuning.nearDistance);
+  return THREE.MathUtils.clamp((distance - tuning.nearDistance) / range, 0, 1);
+}
+
+export function getShotTimingWindow(distance, tuning = SHOT) {
+  const difficulty = getDistanceDifficulty(distance, tuning);
+  const center = (tuning.perfectMin + tuning.perfectMax) * 0.5;
+  const windowSize = THREE.MathUtils.lerp(tuning.perfectWindowNear, tuning.perfectWindowFar, difficulty);
+  const half = windowSize * 0.5;
+  const min = THREE.MathUtils.clamp(center - half, 0, 1);
+  const max = THREE.MathUtils.clamp(center + half, 0, 1);
+  return { min, max, center, difficulty };
 }
 
 export function createShotChargeState() {
@@ -36,7 +47,7 @@ export function releaseShot(state) {
   return releasedPower;
 }
 
-export function computeShotVelocity(origin, target, power, tuning = SHOT) {
+export function computeShotVelocity(origin, target, power, tuning = SHOT, timingWindowOverride = null) {
   const horizontal = new THREE.Vector3(target.x - origin.x, 0, target.z - origin.z);
   const distance = horizontal.length();
   if (distance < 0.001) {
@@ -53,19 +64,24 @@ export function computeShotVelocity(origin, target, power, tuning = SHOT) {
   const denominator = 2 * cos * cos * (distance * tan - deltaY);
   const safeDenominator = Math.max(0.001, denominator);
   const idealSpeed = Math.sqrt((g * distance * distance) / safeDenominator);
+  const timingWindow = timingWindowOverride ?? getShotTimingWindow(distance, tuning);
+  const speedBoost = THREE.MathUtils.lerp(tuning.idealSpeedBoostNear, tuning.idealSpeedBoostFar, timingWindow.difficulty);
 
-  let speed = idealSpeed;
+  let speed = idealSpeed * speedBoost;
   let horizontalError = 0;
-  const isPerfect = power >= tuning.perfectMin && power <= tuning.perfectMax;
+  const isPerfect = power >= timingWindow.min && power <= timingWindow.max;
+  const range = Math.max(0.001, Math.max(timingWindow.center, 1 - timingWindow.center));
+  const maxErrorDeg = THREE.MathUtils.lerp(
+    tuning.maxHorizontalErrorNearDeg,
+    tuning.maxHorizontalErrorFarDeg,
+    timingWindow.difficulty
+  );
 
   if (isPerfect) {
-    speed = idealSpeed * (1 + randomBetween(-0.01, 0.01));
+    horizontalError = 0;
   } else {
-    speed = idealSpeed * (0.85 + power * 0.3);
-    const center = (tuning.perfectMin + tuning.perfectMax) * 0.5;
-    const range = center <= 0 ? 1 : center;
-    const missFactor = THREE.MathUtils.clamp(Math.abs(power - center) / range, 0, 1);
-    horizontalError = THREE.MathUtils.degToRad(tuning.maxHorizontalErrorDeg) * missFactor;
+    const missFactor = THREE.MathUtils.clamp(Math.abs(power - timingWindow.center) / range, 0, 1);
+    horizontalError = THREE.MathUtils.degToRad(maxErrorDeg) * missFactor;
     horizontalError *= Math.random() < 0.5 ? -1 : 1;
   }
 
@@ -78,5 +94,6 @@ export function computeShotVelocity(origin, target, power, tuning = SHOT) {
     isPerfect,
     speed,
     idealSpeed,
+    timingWindow,
   };
 }

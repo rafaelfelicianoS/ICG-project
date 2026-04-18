@@ -19,7 +19,6 @@ export function createPhysicsWorld(courtData) {
 
   const materials = {
     floor: new CANNON.Material("floor"),
-    wall: new CANNON.Material("wall"),
     board: new CANNON.Material("board"),
     rim: new CANNON.Material("rim"),
     ball: new CANNON.Material("ball"),
@@ -27,9 +26,6 @@ export function createPhysicsWorld(courtData) {
 
   world.addContactMaterial(
     new CANNON.ContactMaterial(materials.ball, materials.floor, { friction: 0.4, restitution: 0.75 })
-  );
-  world.addContactMaterial(
-    new CANNON.ContactMaterial(materials.ball, materials.wall, { friction: 0.35, restitution: 0.52 })
   );
   world.addContactMaterial(
     new CANNON.ContactMaterial(materials.ball, materials.board, { friction: 0.28, restitution: 0.5 })
@@ -43,36 +39,6 @@ export function createPhysicsWorld(courtData) {
   floorBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
   floorBody.kind = "floor";
   world.addBody(floorBody);
-
-  const wallThickness = 0.32;
-  const halfHeight = COURT.wallHeight * 0.5;
-
-  const wallBodies = [
-    {
-      halfExtents: new CANNON.Vec3(wallThickness * 0.5, halfHeight, COURT.halfLength + 1),
-      position: new CANNON.Vec3(COURT.halfWidth + wallThickness * 0.5, halfHeight, 0),
-    },
-    {
-      halfExtents: new CANNON.Vec3(wallThickness * 0.5, halfHeight, COURT.halfLength + 1),
-      position: new CANNON.Vec3(-COURT.halfWidth - wallThickness * 0.5, halfHeight, 0),
-    },
-    {
-      halfExtents: new CANNON.Vec3(COURT.halfWidth + 1, halfHeight, wallThickness * 0.5),
-      position: new CANNON.Vec3(0, halfHeight, COURT.halfLength + wallThickness * 0.5),
-    },
-    {
-      halfExtents: new CANNON.Vec3(COURT.halfWidth + 1, halfHeight, wallThickness * 0.5),
-      position: new CANNON.Vec3(0, halfHeight, -COURT.halfLength - wallThickness * 0.5),
-    },
-  ];
-
-  wallBodies.forEach((config) => {
-    const body = new CANNON.Body({ mass: 0, material: materials.wall });
-    body.addShape(new CANNON.Box(config.halfExtents));
-    body.position.copy(config.position);
-    body.kind = "wall";
-    world.addBody(body);
-  });
 
   courtData.hoops.forEach((hoop) => {
     const backboardBody = new CANNON.Body({ mass: 0, material: materials.board });
