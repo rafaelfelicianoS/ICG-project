@@ -40,7 +40,6 @@ app.appendChild(renderer.domElement);
 
 const followCamera = createFollowCamera(renderer.domElement);
 const input = new InputController(renderer.domElement);
-const ui = createHUD();
 const audio = createAudioSystem();
 const clock = new THREE.Clock();
 
@@ -50,6 +49,12 @@ const player = createPlayer(scene);
 const ballMesh = createBasketballMesh(scene);
 const dribbleState = createDribbleState();
 const physics = createPhysicsWorld(court);
+const ui = createHUD({
+  onJerseyColor: (hex) => player.setJerseyColor(hex),
+  onShortsColor: (hex) => player.setShortsColor(hex),
+  onBallColor: (hex) => ballMesh.setBaseColor(hex),
+  onNumberChange: (number) => player.setJerseyNumber(number),
+});
 
 const playerPosition = new THREE.Vector3(0, 0, 0);
 let playerYaw = 0;
@@ -62,6 +67,7 @@ if (player.setFirstPersonMode) {
 
 const tempBallAnchor = new THREE.Vector3();
 const tempReleaseAnchor = new THREE.Vector3();
+const tempHeadPosition = new THREE.Vector3();
 const tempVector = new THREE.Vector3();
 const tempVectorB = new THREE.Vector3();
 const tempVectorC = new THREE.Vector3();
@@ -231,7 +237,7 @@ function updatePlayerMovement(delta, canMove) {
     return false;
   }
 
-  const moveX = (input.isDown("KeyD") ? 1 : 0) - (input.isDown("KeyA") ? 1 : 0);
+  const moveX = (input.isDown("KeyA") ? 1 : 0) - (input.isDown("KeyD") ? 1 : 0);
   const moveZ = (input.isDown("KeyW") ? 1 : 0) - (input.isDown("KeyS") ? 1 : 0);
   const isMoving = moveX !== 0 || moveZ !== 0;
   if (!isMoving) {
@@ -240,7 +246,7 @@ function updatePlayerMovement(delta, canMove) {
 
   followCamera.getForwardXZ(playerPosition, tempVector);
 
-  tempVectorB.copy(tempVector).cross(worldUp).normalize();
+  tempVectorB.copy(worldUp).cross(tempVector).normalize();
 
   tempVectorC.copy(tempVector).multiplyScalar(moveZ);
   tempVectorC.addScaledVector(tempVectorB, moveX);
@@ -274,8 +280,8 @@ function handleShootingInput(delta, nearestHoop) {
     audio.ensureContext();
     startShotCharge(shotCharge);
     if (followCamera.isFirstPerson()) {
-      const lockYaw = Math.atan2(nearestHoop.rimCenter.x - playerPosition.x, nearestHoop.rimCenter.z - playerPosition.z);
-      followCamera.startLockOn(lockYaw, 0.35);
+      player.getHeadAnchor(tempHeadPosition);
+      followCamera.startShotLockOn(nearestHoop.rimCenter, tempHeadPosition);
     }
   }
 
@@ -293,7 +299,6 @@ function handleShootingInput(delta, nearestHoop) {
     if (input.wasPointerReleased()) {
       const releasedPower = releaseShot(shotCharge);
       beginShot(releasedPower, nearestHoop, timingWindow);
-      followCamera.notifyShotReleased();
     }
   } else if (!shootSequence) {
     ui.setPower(0, false);
@@ -337,6 +342,7 @@ function updateShootSequence(delta) {
   const prep = THREE.MathUtils.clamp(shootSequence.timer / shootSequence.releaseTime, 0, 1);
 
   if (!shootSequence.released) {
+    player.setJumpOffset(prep * 0.35);
     player.setShootingPose(prep);
     player.getBallAnchor(tempBallAnchor);
     player.getReleaseAnchor(tempReleaseAnchor);
@@ -362,11 +368,13 @@ function updateShootSequence(delta) {
     0,
     1
   );
+  player.setJumpOffset((1 - coolDown) * 0.35);
   player.setShootingPose(1 - coolDown);
 
   if (shootSequence.timer >= shootSequence.duration) {
     shootSequence = null;
     player.setShootingPose(0);
+    player.resetJumpOffset();
   }
 }
 
@@ -427,6 +435,7 @@ function recoverBallToHands(reason) {
   if (hasBall || recoverySequence) {
     return;
   }
+  followCamera.endShotLockOn();
   recoverySequence = {
     reason,
     timer: 0,
@@ -490,6 +499,7 @@ function updateStateMachine() {
 }
 
 function registerScore(shotRecord, hoop) {
+  followCamera.endShotLockOn();
   tempVec2B.set(hoop.rimCenter.x, hoop.rimCenter.z);
   const shotValue = classifyShotValue(shotRecord.originXZ, tempVec2B);
   stats.score += shotValue;

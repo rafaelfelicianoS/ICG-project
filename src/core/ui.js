@@ -1,4 +1,29 @@
-export function createHUD() {
+function createPalette(container, colors, onPick) {
+  if (!container) {
+    return;
+  }
+
+  colors.forEach((color, index) => {
+    const swatch = document.createElement("button");
+    swatch.type = "button";
+    swatch.className = "color-swatch";
+    swatch.dataset.color = color;
+    swatch.style.background = color;
+    if (index === 0) {
+      swatch.classList.add("active");
+    }
+
+    swatch.addEventListener("click", () => {
+      container.querySelectorAll(".color-swatch").forEach((node) => node.classList.remove("active"));
+      swatch.classList.add("active");
+      onPick(color);
+    });
+
+    container.appendChild(swatch);
+  });
+}
+
+export function createHUD(options = {}) {
   const scoreValue = document.getElementById("score-value");
   const shotsMadeValue = document.getElementById("shots-made-value");
   const fgValue = document.getElementById("fg-value");
@@ -14,6 +39,59 @@ export function createHUD() {
   const flashOverlay = document.getElementById("flash-overlay");
   const controlsPanel = document.getElementById("controls-panel");
   const dayNightBadge = document.getElementById("day-night-badge");
+
+  const customizeButton = document.getElementById("customize-btn");
+  const customizePanel = document.getElementById("customize-panel");
+  const jerseyColorsRoot = document.getElementById("jersey-colors");
+  const shortsColorsRoot = document.getElementById("shorts-colors");
+  const ballColorsRoot = document.getElementById("ball-colors");
+  const numDownButton = document.getElementById("num-down");
+  const numUpButton = document.getElementById("num-up");
+  const numDisplay = document.getElementById("num-display");
+
+  const onJerseyColor = options.onJerseyColor ?? (() => {});
+  const onShortsColor = options.onShortsColor ?? (() => {});
+  const onBallColor = options.onBallColor ?? (() => {});
+  const onNumberChange = options.onNumberChange ?? (() => {});
+
+  const jerseyPalette = ["#1B5E20", "#2E7D32", "#14532d", "#004d40", "#0B7285", "#5f3dc4", "#8d1f1f", "#111111"];
+  const shortsPalette = ["#111111", "#1f2937", "#374151", "#0f172a", "#3a0ca3", "#7f1d1d", "#14532d", "#1B5E20"];
+  const ballPalette = ["#DD7D2A", "#111111", "#F5F5F5", "#C1121F", "#1D4ED8", "#6D28D9"];
+
+  let currentNumber = 23;
+  if (numDisplay) {
+    numDisplay.textContent = String(currentNumber);
+  }
+
+  if (customizeButton && customizePanel) {
+    customizeButton.addEventListener("click", () => {
+      customizePanel.classList.toggle("hidden");
+    });
+  }
+
+  createPalette(jerseyColorsRoot, jerseyPalette, onJerseyColor);
+  createPalette(shortsColorsRoot, shortsPalette, onShortsColor);
+  createPalette(ballColorsRoot, ballPalette, onBallColor);
+
+  if (numDownButton) {
+    numDownButton.addEventListener("click", () => {
+      currentNumber = Math.max(1, currentNumber - 1);
+      if (numDisplay) {
+        numDisplay.textContent = String(currentNumber);
+      }
+      onNumberChange(currentNumber);
+    });
+  }
+
+  if (numUpButton) {
+    numUpButton.addEventListener("click", () => {
+      currentNumber = Math.min(99, currentNumber + 1);
+      if (numDisplay) {
+        numDisplay.textContent = String(currentNumber);
+      }
+      onNumberChange(currentNumber);
+    });
+  }
 
   function powerColor(power) {
     if (power < 0.5) {

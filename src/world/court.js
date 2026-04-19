@@ -1,6 +1,8 @@
 import { COURT, getBackboardZ, getRimCenter } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
 import { createHoopNet } from "./net.js";
+import { createNPCs } from "./npcs.js";
+import { createPark } from "./park.js";
 
 const sideLineX = COURT.halfWidth - 0.9;
 
@@ -65,11 +67,11 @@ function createParkSurfaceTexture() {
 
       const base = inside ? redZone : greenZone;
       const noise = (((px * 13 + py * 7) % 17) - 8) * 1.4;
-      const i = (py * size + px) * 4;
-      data[i] = Math.max(0, Math.min(255, base.r + noise));
-      data[i + 1] = Math.max(0, Math.min(255, base.g + noise));
-      data[i + 2] = Math.max(0, Math.min(255, base.b + noise));
-      data[i + 3] = 255;
+      const index = (py * size + px) * 4;
+      data[index] = Math.max(0, Math.min(255, base.r + noise));
+      data[index + 1] = Math.max(0, Math.min(255, base.g + noise));
+      data[index + 2] = Math.max(0, Math.min(255, base.b + noise));
+      data[index + 3] = 255;
     }
   }
 
@@ -89,7 +91,7 @@ function createLinesTexture() {
 
   const mapX = (x) => ((x + COURT.halfWidth) / COURT.width) * size;
   const mapY = (z) => ((COURT.halfLength - z) / COURT.length) * size;
-  const radiusToPx = (r) => (r / COURT.width) * size;
+  const radiusToPx = (radius) => (radius / COURT.width) * size;
   const linePx = Math.max(2, (COURT.lineWidth / COURT.width) * size);
 
   ctx.strokeStyle = "#ffffff";
@@ -114,8 +116,9 @@ function createLinesTexture() {
     const freeThrowZ = sign * (COURT.halfLength - COURT.freeThrowDistanceFromBaseline);
     const paintEndZ = sign * (COURT.halfLength - COURT.paintDepth);
     const rim = getRimCenter(sign);
-    const arcDelta = Math.sqrt(Math.max(0.001, COURT.threePointRadius ** 2 - sideLineX ** 2));
-    const arcTouchZ = rim.z - sign * arcDelta;
+    const rimZ = rim.z;
+    const arcTouchZ =
+      rimZ - sign * Math.sqrt(Math.max(0, COURT.threePointRadius ** 2 - sideLineX ** 2));
 
     ctx.strokeRect(
       mapX(-paintHalfWidth),
@@ -137,92 +140,23 @@ function createLinesTexture() {
     }
     ctx.stroke();
 
+    const lineStart = mapY(sign * COURT.halfLength);
+    const lineEnd = mapY(arcTouchZ);
+
     ctx.beginPath();
-    ctx.moveTo(mapX(-sideLineX), mapY(baselineZ));
-    ctx.lineTo(mapX(-sideLineX), mapY(arcTouchZ));
+    ctx.moveTo(mapX(-sideLineX), Math.min(lineStart, lineEnd));
+    ctx.lineTo(mapX(-sideLineX), Math.max(lineStart, lineEnd));
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(mapX(sideLineX), mapY(baselineZ));
-    ctx.lineTo(mapX(sideLineX), mapY(arcTouchZ));
+    ctx.moveTo(mapX(sideLineX), Math.min(lineStart, lineEnd));
+    ctx.lineTo(mapX(sideLineX), Math.max(lineStart, lineEnd));
     ctx.stroke();
   });
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.anisotropy = 4;
   return texture;
-}
-
-function createBench() {
-  const bench = new THREE.Group();
-  const wood = new THREE.MeshStandardMaterial({ color: 0x70523a, roughness: 0.85, metalness: 0.05 });
-  const metal = new THREE.MeshStandardMaterial({ color: 0x4f5965, roughness: 0.62, metalness: 0.25 });
-
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 0.5), wood);
-  seat.position.y = 0.55;
-  seat.castShadow = true;
-  bench.add(seat);
-
-  const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 0.4), wood);
-  back.position.set(0, 0.95, -0.18);
-  back.rotation.x = -0.35;
-  back.castShadow = true;
-  bench.add(back);
-
-  for (const x of [-0.7, 0.7]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), metal);
-    leg.position.set(x, 0.25, 0);
-    leg.castShadow = true;
-    bench.add(leg);
-  }
-
-  return bench;
-}
-
-function createParkProps(group) {
-  const grass = new THREE.Mesh(
-    new THREE.PlaneGeometry(60, 60),
-    new THREE.MeshStandardMaterial({ color: 0x27ae60, roughness: 0.95, metalness: 0 })
-  );
-  grass.rotation.x = -Math.PI / 2;
-  grass.position.y = -0.035;
-  grass.receiveShadow = true;
-  group.add(grass);
-
-  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x7b4f2c, roughness: 0.9, metalness: 0 });
-  const leavesMaterial = new THREE.MeshStandardMaterial({ color: 0x2f8f4e, roughness: 0.8, metalness: 0 });
-  const treeCount = 12;
-
-  for (let i = 0; i < treeCount; i += 1) {
-    const angle = (i / treeCount) * Math.PI * 2;
-    const radius = 23 + (i % 3) * 1.2;
-    const x = Math.cos(angle) * radius;
-    const z = Math.sin(angle) * radius;
-
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 3, 10), trunkMaterial);
-    trunk.position.set(x, 1.5, z);
-    trunk.castShadow = true;
-    group.add(trunk);
-
-    const crown = new THREE.Mesh(new THREE.SphereGeometry(1.5, 14, 12), leavesMaterial);
-    crown.position.set(x, 3.7, z);
-    crown.castShadow = true;
-    group.add(crown);
-  }
-
-  const benches = [
-    { x: COURT.halfWidth + 2.6, z: -6.5, yaw: Math.PI / 2 },
-    { x: COURT.halfWidth + 2.6, z: 6.5, yaw: Math.PI / 2 },
-    { x: -COURT.halfWidth - 2.6, z: -6.5, yaw: -Math.PI / 2 },
-    { x: -COURT.halfWidth - 2.6, z: 6.5, yaw: -Math.PI / 2 },
-  ];
-
-  benches.forEach((cfg) => {
-    const bench = createBench();
-    bench.position.set(cfg.x, 0, cfg.z);
-    bench.rotation.y = cfg.yaw;
-    group.add(bench);
-  });
 }
 
 function createHoopGroup(sign) {
@@ -338,7 +272,8 @@ export function createCourt(scene) {
   const group = new THREE.Group();
   group.name = "court-root";
 
-  createParkProps(group);
+  const park = createPark(group);
+  const npcs = createNPCs(group);
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(COURT.width, COURT.length),
@@ -377,6 +312,8 @@ export function createCourt(scene) {
   const tempBallVelocity = new THREE.Vector3();
 
   function update(delta) {
+    park.update(delta);
+    npcs.update(delta);
     for (const hoop of hoopById.values()) {
       hoop.net.update(delta);
     }

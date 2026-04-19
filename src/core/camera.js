@@ -1,15 +1,15 @@
-import { THREE } from "./deps.js";
 import { COURT } from "./constants.js";
+import { THREE } from "./deps.js";
 
 function wrapAngle(angle) {
-  let a = angle;
-  while (a > Math.PI) {
-    a -= Math.PI * 2;
+  let value = angle;
+  while (value > Math.PI) {
+    value -= Math.PI * 2;
   }
-  while (a < -Math.PI) {
-    a += Math.PI * 2;
+  while (value < -Math.PI) {
+    value += Math.PI * 2;
   }
-  return a;
+  return value;
 }
 
 function lerpAngle(from, to, alpha) {
@@ -25,36 +25,45 @@ export function createFollowCamera(domElement) {
   const rotatedHeadOffset = new THREE.Vector3();
   const cameraToPlayer = new THREE.Vector3();
   const upAxis = new THREE.Vector3(0, 1, 0);
+  const toHoop = new THREE.Vector3();
   const headOffset = new THREE.Vector3(0, 1.85, 0.05);
 
   let mode = "third_person";
   let yaw = 0;
   let targetYaw = 0;
   let flipping = false;
+
   let fpYaw = 0;
   let fpPitch = 0;
   let pointerLocked = false;
 
-  const lockOn = {
+  const shotLockOn = {
     active: false,
+    transitioning: false,
     targetYaw: 0,
+    targetPitch: 0,
     duration: 0.35,
     elapsed: 0,
-    postReleaseLock: 0,
   };
+
+  function requestPointerLock() {
+    if (domElement && domElement.requestPointerLock) {
+      domElement.requestPointerLock();
+    }
+  }
+
+  function releasePointerLock() {
+    if (document.pointerLockElement === domElement && document.exitPointerLock) {
+      document.exitPointerLock();
+    }
+  }
 
   function onPointerLockChange() {
     pointerLocked = document.pointerLockElement === domElement;
   }
 
   function onMouseMove(event) {
-    if (mode !== "first_person") {
-      return;
-    }
-    if (!pointerLocked) {
-      return;
-    }
-    if (lockOn.active || lockOn.postReleaseLock > 0) {
+    if (mode !== "first_person" || !pointerLocked || shotLockOn.active) {
       return;
     }
 
@@ -67,20 +76,22 @@ export function createFollowCamera(domElement) {
   document.addEventListener("mousemove", onMouseMove);
 
   function updateFirstPerson(position, delta, playerYaw) {
-    if (lockOn.active) {
-      lockOn.elapsed += delta;
+    if (shotLockOn.active) {
       const lockAlpha = 1 - Math.exp(-delta * 12);
-      fpYaw = lerpAngle(fpYaw, lockOn.targetYaw, lockAlpha);
-      fpPitch = THREE.MathUtils.lerp(fpPitch, 0, lockAlpha);
-      const finished =
-        lockOn.elapsed >= lockOn.duration && Math.abs(wrapAngle(lockOn.targetYaw - fpYaw)) < 0.01;
-      if (finished) {
-        lockOn.active = false;
-      }
-    }
+      fpYaw = lerpAngle(fpYaw, shotLockOn.targetYaw, lockAlpha);
+      fpPitch = THREE.MathUtils.lerp(fpPitch, shotLockOn.targetPitch, lockAlpha);
 
-    if (lockOn.postReleaseLock > 0) {
-      lockOn.postReleaseLock = Math.max(0, lockOn.postReleaseLock - delta);
+      if (shotLockOn.transitioning) {
+        shotLockOn.elapsed += delta;
+        const yawRemaining = Math.abs(wrapAngle(shotLockOn.targetYaw - fpYaw));
+        const pitchRemaining = Math.abs(shotLockOn.targetPitch - fpPitch);
+        if (shotLockOn.elapsed >= shotLockOn.duration && yawRemaining < 0.01 && pitchRemaining < 0.01) {
+          shotLockOn.transitioning = false;
+        }
+      } else {
+        fpYaw = shotLockOn.targetYaw;
+        fpPitch = shotLockOn.targetPitch;
+      }
     }
 
     rotatedHeadOffset.copy(headOffset).applyAxisAngle(upAxis, playerYaw);
@@ -100,8 +111,7 @@ export function createFollowCamera(domElement) {
     }
 
     rotatedOffset.set(offset.x, offset.y, offset.z).applyAxisAngle(upAxis, yaw);
-    desiredPosition.copy(rotatedOffset);
-    desiredPosition.add(position);
+    desiredPosition.copy(rotatedOffset).add(position);
 
     const followAlpha = 1 - Math.exp(-delta * 8);
     camera.position.lerp(desiredPosition, followAlpha);
@@ -123,10 +133,7 @@ export function createFollowCamera(domElement) {
   }
 
   function requestHalfCourtFlip() {
-    if (mode !== "third_person") {
-      return false;
-    }
-    if (flipping) {
+    if (mode !== "third_person" || flipping) {
       return false;
     }
     targetYaw = wrapAngle(targetYaw + Math.PI);
@@ -155,20 +162,16 @@ export function createFollowCamera(domElement) {
       mode = "first_person";
       fpYaw = playerYaw;
       fpPitch = 0;
-      lockOn.active = false;
-      lockOn.postReleaseLock = 0;
-      if (domElement && domElement.requestPointerLock) {
-        domElement.requestPointerLock();
-      }
+      shotLockOn.active = false;
+      shotLockOn.transitioning = false;
+      requestPointerLock();
       return mode;
     }
 
     mode = "third_person";
-    lockOn.active = false;
-    lockOn.postReleaseLock = 0;
-    if (document.pointerLockElement === domElement && document.exitPointerLock) {
-      document.exitPointerLock();
-    }
+    shotLockOn.active = false;
+    shotLockOn.transitioning = false;
+    releasePointerLock();
     return mode;
   }
 
@@ -176,31 +179,39 @@ export function createFollowCamera(domElement) {
     return mode === "first_person";
   }
 
-  function startLockOn(target, duration = 0.35) {
-    if (mode !== "first_person") {
+  function startShotLockOn(hoopCenter, headPosition) {
+    if (mode !== "first_person" || !hoopCenter || !headPosition) {
       return false;
     }
-    lockOn.active = true;
-    lockOn.targetYaw = wrapAngle(target);
-    lockOn.duration = Math.max(0.01, duration);
-    lockOn.elapsed = 0;
-    lockOn.postReleaseLock = 0;
+
+    toHoop.set(hoopCenter.x - headPosition.x, hoopCenter.y - headPosition.y, hoopCenter.z - headPosition.z);
+    const horizontalLen = Math.max(0.0001, Math.hypot(toHoop.x, toHoop.z));
+
+    shotLockOn.targetYaw = Math.atan2(toHoop.x, toHoop.z);
+    shotLockOn.targetPitch = -Math.atan2(toHoop.y, horizontalLen);
+    shotLockOn.duration = 0.35;
+    shotLockOn.elapsed = 0;
+    shotLockOn.active = true;
+    shotLockOn.transitioning = true;
+
+    requestPointerLock();
     return true;
   }
 
-  function notifyShotReleased() {
-    if (mode !== "first_person") {
+  function endShotLockOn() {
+    if (!shotLockOn.active) {
       return;
     }
-    lockOn.active = false;
-    lockOn.postReleaseLock = Math.max(lockOn.postReleaseLock, 0.6);
+    shotLockOn.active = false;
+    shotLockOn.transitioning = false;
+  }
+
+  function isShotLockOnActive() {
+    return shotLockOn.active;
   }
 
   function getLockOnYaw() {
-    if (mode !== "first_person") {
-      return null;
-    }
-    if (!lockOn.active) {
+    if (mode !== "first_person" || !shotLockOn.active) {
       return null;
     }
     return fpYaw;
@@ -218,8 +229,9 @@ export function createFollowCamera(domElement) {
     getForwardXZ,
     togglePerspective,
     isFirstPerson,
-    startLockOn,
-    notifyShotReleased,
+    startShotLockOn,
+    endShotLockOn,
+    isShotLockOnActive,
     getLockOnYaw,
     resize,
   };

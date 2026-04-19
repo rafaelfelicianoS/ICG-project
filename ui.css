@@ -1,0 +1,119 @@
+#customize-btn {
+  position: absolute;
+  top: 6.3rem;
+  right: 1rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(13, 27, 42, 0.74);
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#customize-btn svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+#customize-btn:hover {
+  background: rgba(20, 38, 60, 0.88);
+}
+
+#customize-panel {
+  position: absolute;
+  top: 9.2rem;
+  right: 1rem;
+  width: min(280px, 92vw);
+  border-radius: 12px;
+  padding: 0.9rem;
+  background: rgba(13, 27, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+#customize-panel.hidden {
+  display: none;
+}
+
+#customize-panel h2 {
+  margin: 0 0 0.55rem;
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08rem;
+  color: #d7dfeb;
+}
+
+.custom-section {
+  margin-bottom: 0.7rem;
+}
+
+.custom-section span {
+  display: block;
+  margin-bottom: 0.32rem;
+  font-size: 0.78rem;
+  color: #c8d4e0;
+}
+
+.color-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+}
+
+.color-swatch {
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.36);
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-swatch.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(73, 209, 124, 0.45);
+}
+
+.number-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46rem;
+}
+
+.number-picker button {
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.number-picker #num-display {
+  min-width: 2rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: #ffffff;
+}
+
+@media (max-width: 780px) {
+  #customize-btn {
+    top: auto;
+    bottom: 7.1rem;
+    right: 0.65rem;
+  }
+
+  #customize-panel {
+    top: auto;
+    right: 0.65rem;
+    bottom: 9.8rem;
+    width: min(280px, 86vw);
+  }
+}

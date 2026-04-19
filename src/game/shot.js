@@ -68,18 +68,13 @@ export function computeShotVelocity(origin, target, power, tuning = SHOT, timing
   const speed = idealSpeed;
   let horizontalError = 0;
   const isPerfect = power >= timingWindow.min && power <= timingWindow.max;
-  const range = Math.max(0.001, Math.max(timingWindow.center, 1 - timingWindow.center));
-  const maxErrorDeg = THREE.MathUtils.lerp(
-    tuning.maxHorizontalErrorNearDeg,
-    tuning.maxHorizontalErrorFarDeg,
-    timingWindow.difficulty
-  );
 
   if (isPerfect) {
     horizontalError = 0;
   } else {
-    const missFactor = THREE.MathUtils.clamp(Math.abs(power - timingWindow.center) / range, 0, 1);
-    horizontalError = THREE.MathUtils.degToRad(maxErrorDeg) * missFactor;
+    const center = Math.max(0.001, timingWindow.center);
+    const missFactor = THREE.MathUtils.clamp(Math.abs(power - center) / center, 0, 1);
+    horizontalError = THREE.MathUtils.degToRad(tuning.maxHorizontalErrorDeg) * missFactor;
     horizontalError *= Math.random() < 0.5 ? -1 : 1;
   }
 

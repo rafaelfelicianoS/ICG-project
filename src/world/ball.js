@@ -1,47 +1,70 @@
 import { BALL } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
 
-function createBasketballTexture() {
+function normalizeColorValue(colorValue, fallback = "#dd7d2a") {
+  if (typeof colorValue === "string" && colorValue.trim().length > 0) {
+    return colorValue;
+  }
+  if (typeof colorValue === "number") {
+    return `#${colorValue.toString(16).padStart(6, "0")}`;
+  }
+  return fallback;
+}
+
+function createBasketballTextureData(baseColor = "#dd7d2a") {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 1024;
   const ctx = canvas.getContext("2d");
-
-  ctx.fillStyle = "#dd7d2a";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.strokeStyle = "#1b1b1b";
-  ctx.lineWidth = 28;
-
-  ctx.beginPath();
-  ctx.moveTo(0, canvas.height * 0.5);
-  ctx.lineTo(canvas.width, canvas.height * 0.5);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(canvas.width * 0.5, 0);
-  ctx.lineTo(canvas.width * 0.5, canvas.height);
-  ctx.stroke();
-
-  function drawArc(cx, cy, radius, start, end) {
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, start, end);
-    ctx.stroke();
-  }
-
-  drawArc(canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.85, Math.PI * 0.78, Math.PI * 1.22);
-  drawArc(canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.85, -Math.PI * 0.22, Math.PI * 0.22);
-  drawArc(canvas.width * 0.1, canvas.height * 0.5, canvas.width * 0.6, -Math.PI * 0.22, Math.PI * 0.22);
-  drawArc(canvas.width * 0.9, canvas.height * 0.5, canvas.width * 0.6, Math.PI * 0.78, Math.PI * 1.22);
-
   const texture = new THREE.CanvasTexture(canvas);
   texture.anisotropy = 4;
-  return texture;
+
+  function draw(color) {
+    const normalizedColor = normalizeColorValue(color);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = normalizedColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = "#1b1b1b";
+    ctx.lineWidth = 28;
+
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height * 0.5);
+    ctx.lineTo(canvas.width, canvas.height * 0.5);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(canvas.width * 0.5, 0);
+    ctx.lineTo(canvas.width * 0.5, canvas.height);
+    ctx.stroke();
+
+    function drawArc(cx, cy, radius, start, end) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, start, end);
+      ctx.stroke();
+    }
+
+    drawArc(canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.85, Math.PI * 0.78, Math.PI * 1.22);
+    drawArc(canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.85, -Math.PI * 0.22, Math.PI * 0.22);
+    drawArc(canvas.width * 0.1, canvas.height * 0.5, canvas.width * 0.6, -Math.PI * 0.22, Math.PI * 0.22);
+    drawArc(canvas.width * 0.9, canvas.height * 0.5, canvas.width * 0.6, Math.PI * 0.78, Math.PI * 1.22);
+
+    texture.needsUpdate = true;
+  }
+
+  draw(baseColor);
+
+  return {
+    texture,
+    draw,
+  };
 }
 
 export function createBasketballMesh(scene) {
+  const textureData = createBasketballTextureData("#dd7d2a");
   const ballMaterial = new THREE.MeshStandardMaterial({
-    map: createBasketballTexture(),
+    map: textureData.texture,
     roughness: 0.55,
     metalness: 0.04,
   });
@@ -49,6 +72,10 @@ export function createBasketballMesh(scene) {
   const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL.radius, 32, 24), ballMaterial);
   ballMesh.castShadow = true;
   ballMesh.receiveShadow = true;
+  ballMesh.setBaseColor = (colorValue) => {
+    textureData.draw(colorValue);
+  };
+
   scene.add(ballMesh);
   return ballMesh;
 }

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mini-Jogo de Basquetebol 3D</title>
     <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./ui.css" />
   </head>
   <body>
     <div id="app"></div>
@@ -24,6 +25,42 @@
 
       <div id="zone-indicator">ZONA DE 2 PONTOS</div>
       <div id="day-night-badge">DIA</div>
+      <button id="customize-btn" type="button" aria-label="Abrir personalizacao">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M8 4l4 2 4-2 3 3-2 3-2-1v11H9V9L7 10 5 7l3-3z"
+            fill="currentColor"
+          ></path>
+        </svg>
+      </button>
+
+      <div id="customize-panel" class="hidden">
+        <h2>Personalizacao</h2>
+
+        <div class="custom-section">
+          <span>Camisola</span>
+          <div class="color-palette" id="jersey-colors"></div>
+        </div>
+
+        <div class="custom-section">
+          <span>Calcoes</span>
+          <div class="color-palette" id="shorts-colors"></div>
+        </div>
+
+        <div class="custom-section">
+          <span>Bola</span>
+          <div class="color-palette" id="ball-colors"></div>
+        </div>
+
+        <div class="custom-section">
+          <span>Numero</span>
+          <div class="number-picker">
+            <button id="num-down" type="button">-</button>
+            <span id="num-display">23</span>
+            <button id="num-up" type="button">+</button>
+          </div>
+        </div>
+      </div>
 
       <div id="power-wrapper" class="hidden">
         <div id="timing-label">PRECISAO</div>
