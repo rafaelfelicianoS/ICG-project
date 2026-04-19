@@ -193,7 +193,7 @@ export function createFollowCamera(domElement) {
     const horizontalLen = Math.max(0.0001, Math.hypot(toHoop.x, toHoop.z));
 
     shotLockOn.targetYaw = Math.atan2(toHoop.x, toHoop.z);
-    shotLockOn.targetPitch = -Math.atan2(toHoop.y, horizontalLen);
+    shotLockOn.targetPitch = Math.atan2(toHoop.y, horizontalLen);
     shotLockOn.duration = 0.35;
     shotLockOn.elapsed = 0;
     shotLockOn.active = true;

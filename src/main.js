@@ -291,7 +291,7 @@ function handleShootingInput(delta, nearestHoop) {
     startShotCharge(shotCharge);
     if (followCamera.isFirstPerson()) {
       player.getHeadAnchor(tempHeadPosition);
-      followCamera.startShotLockOn(nearestHoop.rimCenter, tempHeadPosition);
+      followCamera.startShotLockOn(nearestHoop.lockOnTarget ?? nearestHoop.rimCenter, tempHeadPosition);
     }
   }
 

@@ -225,6 +225,11 @@ function createHoopGroup(sign) {
     side: sign > 0 ? "north" : "south",
     rimCenter: new THREE.Vector3(rimCenter.x, rimCenter.y, rimCenter.z),
     backboardCenter: new THREE.Vector3(0, COURT.backboardCenterHeight, backboardZ),
+    lockOnTarget: new THREE.Vector3(
+      0,
+      COURT.hoopHeight + 0.2,
+      backboardZ - sign * (COURT.backboardDepth * 0.5 + 0.01)
+    ),
     net,
   };
 }
