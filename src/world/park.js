@@ -3,25 +3,53 @@ import { THREE } from "../core/deps.js";
 
 function createBench() {
   const bench = new THREE.Group();
-  const wood = new THREE.MeshStandardMaterial({ color: 0x70523a, roughness: 0.85, metalness: 0.05 });
-  const metal = new THREE.MeshStandardMaterial({ color: 0x4f5965, roughness: 0.62, metalness: 0.25 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x8b5e3c, roughness: 0.85, metalness: 0 });
+  const woodSupport = new THREE.MeshStandardMaterial({ color: 0x5d3a1a, roughness: 0.85, metalness: 0 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.3, metalness: 0.7 });
 
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 0.5), wood);
-  seat.position.y = 0.55;
-  seat.castShadow = true;
-  bench.add(seat);
+  for (const offset of [-0.16, 0, 0.16]) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 0.14), wood);
+    slat.position.set(0, 0.44, offset);
+    slat.castShadow = true;
+    bench.add(slat);
+  }
 
-  const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 0.4), wood);
-  back.position.set(0, 0.95, -0.18);
-  back.rotation.x = -0.35;
-  back.castShadow = true;
-  bench.add(back);
+  for (const offset of [-0.1, 0, 0.1]) {
+    const backSlat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.06, 0.1), wood);
+    backSlat.position.set(0, 0.68, offset - 0.18);
+    backSlat.rotation.x = -0.26;
+    backSlat.castShadow = true;
+    bench.add(backSlat);
+  }
 
-  for (const x of [-0.7, 0.7]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), metal);
-    leg.position.set(x, 0.25, 0);
+  for (const side of [-1, 1]) {
+    const support = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.72, 0.48), woodSupport);
+    support.position.set(side * 0.86, 0.45, -0.04);
+    support.castShadow = true;
+    bench.add(support);
+  }
+
+  for (const [x, z] of [
+    [-0.82, 0.1],
+    [0.82, 0.1],
+    [-0.82, -0.2],
+    [0.82, -0.2],
+  ]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.44, 8), metal);
+    leg.position.set(x, 0.22, z);
+    if (z < 0) {
+      leg.rotation.x = 0.08;
+    }
     leg.castShadow = true;
     bench.add(leg);
+  }
+
+  for (const side of [-1, 1]) {
+    const floorBar = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.52, 8), metal);
+    floorBar.position.set(side * 0.82, 0.08, -0.04);
+    floorBar.rotation.x = Math.PI / 2;
+    floorBar.castShadow = true;
+    bench.add(floorBar);
   }
 
   return bench;

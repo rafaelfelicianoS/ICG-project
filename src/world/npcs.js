@@ -1,6 +1,22 @@
 import { COURT } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
 
+function wrapAngle(angle) {
+  let value = angle;
+  while (value > Math.PI) {
+    value -= Math.PI * 2;
+  }
+  while (value < -Math.PI) {
+    value += Math.PI * 2;
+  }
+  return value;
+}
+
+function lerpAngle(from, to, alpha) {
+  const diff = wrapAngle(to - from);
+  return wrapAngle(from + diff * alpha);
+}
+
 function createNPCFigure(options = {}) {
   const group = new THREE.Group();
   const scale = options.scale ?? 1;
@@ -47,7 +63,6 @@ function createNPCFigure(options = {}) {
   leftLeg.position.y = -0.4;
   leftLeg.castShadow = true;
   leftLegPivot.add(leftLeg);
-
   const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.3), shoe);
   leftShoe.position.set(0, -0.83, 0.06);
   leftShoe.castShadow = true;
@@ -60,7 +75,6 @@ function createNPCFigure(options = {}) {
   rightLeg.position.y = -0.4;
   rightLeg.castShadow = true;
   rightLegPivot.add(rightLeg);
-
   const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.3), shoe);
   rightShoe.position.set(0, -0.83, 0.06);
   rightShoe.castShadow = true;
@@ -72,6 +86,7 @@ function createNPCFigure(options = {}) {
   return {
     group,
     torso,
+    head,
     leftArmPivot,
     rightArmPivot,
     leftLegPivot,
@@ -79,35 +94,32 @@ function createNPCFigure(options = {}) {
   };
 }
 
-function updateWalkPose(figure, animTime, stride = 0.4) {
-  const swing = Math.sin(animTime * 8);
-  figure.leftLegPivot.rotation.x = swing * stride;
-  figure.rightLegPivot.rotation.x = -swing * stride;
-  figure.leftArmPivot.rotation.x = -swing * stride * 0.65;
-  figure.rightArmPivot.rotation.x = swing * stride * 0.65;
-}
+function updateWalker(walker, delta) {
+  const pathDelta = new THREE.Vector3().subVectors(walker.pathEnd, walker.pathStart);
+  const pathLength = Math.max(0.001, pathDelta.length());
 
-function positionOnPath(path, t, outPosition, outForward) {
-  const pointCount = path.length;
-  if (pointCount < 2) {
-    outPosition.copy(path[0] ?? new THREE.Vector3());
-    outForward.set(0, 0, 1);
-    return;
+  walker.progress += (delta * walker.speed * walker.direction) / pathLength;
+  if (walker.progress >= 1) {
+    walker.progress = 1;
+    walker.direction = -1;
+  } else if (walker.progress <= 0) {
+    walker.progress = 0;
+    walker.direction = 1;
   }
 
-  const wrapped = ((t % 1) + 1) % 1;
-  const scaled = wrapped * pointCount;
-  const indexA = Math.floor(scaled) % pointCount;
-  const indexB = (indexA + 1) % pointCount;
-  const localT = scaled - Math.floor(scaled);
+  walker.figure.group.position.lerpVectors(walker.pathStart, walker.pathEnd, walker.progress);
 
-  outPosition.copy(path[indexA]).lerp(path[indexB], localT);
-  outForward.copy(path[indexB]).sub(path[indexA]);
-  if (outForward.lengthSq() < 0.0001) {
-    outForward.set(0, 0, 1);
-  } else {
-    outForward.normalize();
-  }
+  const dir = walker.direction > 0 ? 1 : -1;
+  const targetYaw = Math.atan2(pathDelta.x * dir, pathDelta.z * dir);
+  const yawAlpha = 1 - Math.exp(-delta * 5);
+  walker.figure.group.rotation.y = lerpAngle(walker.figure.group.rotation.y, targetYaw, yawAlpha);
+
+  walker.animTime += delta;
+  const swing = Math.sin(walker.animTime * 5 + walker.phase) * 0.4;
+  walker.figure.leftLegPivot.rotation.x = swing;
+  walker.figure.rightLegPivot.rotation.x = -swing;
+  walker.figure.leftArmPivot.rotation.x = -swing * 0.5;
+  walker.figure.rightArmPivot.rotation.x = swing * 0.5;
 }
 
 export function createNPCs(parentGroup) {
@@ -115,152 +127,105 @@ export function createNPCs(parentGroup) {
   root.name = "park-npcs";
   parentGroup.add(root);
 
-  const tempPos = new THREE.Vector3();
-  const tempForward = new THREE.Vector3();
-  const tempLateral = new THREE.Vector3();
-
-  const familyRoot = new THREE.Group();
-  root.add(familyRoot);
-  const familyAdultA = createNPCFigure({ shirtColor: 0x5e60ce, pantsColor: 0x1f2933, shoeColor: 0x111111 });
-  const familyAdultB = createNPCFigure({ shirtColor: 0xff922b, pantsColor: 0x343a40, shoeColor: 0x111111 });
-  const familyChild = createNPCFigure({
-    scale: 0.6,
+  const child = createNPCFigure({
+    scale: 0.55,
     shirtColor: 0x2f9e44,
-    pantsColor: 0x343a40,
+    pantsColor: 0x2d3436,
     shoeColor: 0x111111,
   });
-  familyRoot.add(familyAdultA.group);
-  familyRoot.add(familyAdultB.group);
-  familyRoot.add(familyChild.group);
+  root.add(child.group);
 
-  const familyPath = [];
-  const familyCenter = new THREE.Vector3(-COURT.halfWidth - 6, 0, 0);
-  for (let i = 0; i < 20; i += 1) {
-    const a = (i / 20) * Math.PI * 2;
-    familyPath.push(
-      new THREE.Vector3(
-        familyCenter.x + Math.cos(a) * 2.8,
-        0,
-        familyCenter.z + Math.sin(a) * 5.2
-      )
-    );
-  }
+  const idle = createNPCFigure({
+    scale: 1,
+    shirtColor: 0x6c757d,
+    pantsColor: 0x212529,
+    shoeColor: 0x111111,
+  });
+  idle.group.position.set(COURT.halfWidth + 3, 0, 1.2);
+  root.add(idle.group);
 
-  const reader = createNPCFigure({ shirtColor: 0xe53935, pantsColor: 0x2f3e46, shoeColor: 0x111111 });
-  reader.group.position.set(COURT.halfWidth + 8, 0, 3.5);
-  reader.torso.rotation.x = -THREE.MathUtils.degToRad(20);
-  reader.leftLegPivot.rotation.x = -Math.PI / 2;
-  reader.rightLegPivot.rotation.x = -Math.PI / 2;
-  reader.leftLegPivot.position.y = 0.33;
-  reader.rightLegPivot.position.y = 0.33;
-  reader.leftArmPivot.rotation.x = -1.35;
-  reader.rightArmPivot.rotation.x = -1.35;
-  const book = new THREE.Mesh(
-    new THREE.BoxGeometry(0.22, 0.03, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0xf8f9fa, roughness: 0.66 })
-  );
-  book.position.set(0, 1.02, 0.26);
-  book.rotation.x = -0.6;
-  book.castShadow = true;
-  reader.group.add(book);
-  root.add(reader.group);
-
-  const coupleRoot = new THREE.Group();
-  root.add(coupleRoot);
-  const coupleA = createNPCFigure({ shirtColor: 0x00a8e8, pantsColor: 0x283618 });
-  const coupleB = createNPCFigure({ shirtColor: 0xf28482, pantsColor: 0x1d3557 });
-  coupleRoot.add(coupleA.group);
-  coupleRoot.add(coupleB.group);
-
-  const idlePerson = createNPCFigure({ shirtColor: 0x6c757d, pantsColor: 0x212529 });
-  idlePerson.group.position.set(COURT.halfWidth + 2.8, 0, -1.2);
-  root.add(idlePerson.group);
-
-  const familyScene = {
-    type: "family",
-    members: [familyAdultA, familyAdultB, familyChild],
-    path: familyPath,
-    speed: 1.2,
-    progress: 0,
-    animTime: 0,
-  };
-
-  const coupleScene = {
-    type: "couple",
-    members: [coupleA, coupleB],
-    path: [new THREE.Vector3(-8, 0, COURT.halfLength + 8), new THREE.Vector3(8, 0, COURT.halfLength + 8)],
-    speed: 0.55,
+  const walkerA = {
+    figure: createNPCFigure({
+      scale: 1,
+      shirtColor: 0x00a8e8,
+      pantsColor: 0x283618,
+      shoeColor: 0x111111,
+    }),
+    pathStart: new THREE.Vector3(-9, 0, COURT.halfLength + 7.8),
+    pathEnd: new THREE.Vector3(9, 0, COURT.halfLength + 7.8),
+    speed: 1,
     direction: 1,
-    progress: 0,
+    progress: 0.2,
+    animTime: 0,
+    phase: 0.2,
+  };
+  root.add(walkerA.figure.group);
+
+  const walkerB = {
+    figure: createNPCFigure({
+      scale: 1.05,
+      shirtColor: 0xf28482,
+      pantsColor: 0x1d3557,
+      shoeColor: 0x111111,
+    }),
+    pathStart: new THREE.Vector3(COURT.halfWidth + 7.2, 0, -COURT.halfLength - 6.4),
+    pathEnd: new THREE.Vector3(-COURT.halfWidth - 7.2, 0, -COURT.halfLength - 10.4),
+    speed: 0.8,
+    direction: 1,
+    progress: 0.65,
+    animTime: 0,
+    phase: 1.4,
+  };
+  root.add(walkerB.figure.group);
+
+  const childScene = {
+    center: new THREE.Vector3(-COURT.halfWidth - 5.1, 0, 0.8),
+    radiusX: 2.1,
+    radiusZ: 1.25,
+    speed: 0.9,
+    angle: 0.2,
     animTime: 0,
   };
 
   const idleScene = {
-    type: "idle",
-    member: idlePerson,
     animTime: 0,
   };
 
-  function updateFamily(delta) {
-    familyScene.progress += (delta * familyScene.speed) / 28;
-    familyScene.animTime += delta;
+  function updateChild(delta) {
+    const averageRadius = (childScene.radiusX + childScene.radiusZ) * 0.5;
+    const angularSpeed = childScene.speed / Math.max(0.001, averageRadius);
+    childScene.angle += delta * angularSpeed;
+    childScene.animTime += delta * 1.3;
 
-    const offsets = [0.96, 0.04, 0.5];
-    for (let i = 0; i < familyScene.members.length; i += 1) {
-      const member = familyScene.members[i];
-      const progress = familyScene.progress + offsets[i];
-      positionOnPath(familyScene.path, progress, tempPos, tempForward);
+    const x = childScene.center.x + Math.cos(childScene.angle) * childScene.radiusX;
+    const z = childScene.center.z + Math.sin(childScene.angle) * childScene.radiusZ;
+    child.group.position.set(x, 0, z);
 
-      member.group.position.copy(tempPos);
-      member.group.rotation.y = Math.atan2(tempForward.x, tempForward.z);
-      updateWalkPose(member, familyScene.animTime + i * 0.7, 0.34);
-    }
-  }
+    const tangentX = -Math.sin(childScene.angle) * childScene.radiusX;
+    const tangentZ = Math.cos(childScene.angle) * childScene.radiusZ;
+    child.group.rotation.y = Math.atan2(tangentX, tangentZ);
 
-  function updateCouple(delta) {
-    coupleScene.animTime += delta;
-    coupleScene.progress += delta * coupleScene.speed * coupleScene.direction;
-
-    if (coupleScene.progress > 1) {
-      coupleScene.progress = 1;
-      coupleScene.direction = -1;
-    } else if (coupleScene.progress < 0) {
-      coupleScene.progress = 0;
-      coupleScene.direction = 1;
-    }
-
-    const start = coupleScene.path[0];
-    const end = coupleScene.path[1];
-    tempPos.copy(start).lerp(end, coupleScene.progress);
-    tempForward.copy(end).sub(start).normalize();
-    if (coupleScene.direction < 0) {
-      tempForward.multiplyScalar(-1);
-    }
-
-    const spacing = 0.85;
-    tempLateral.set(tempForward.z, 0, -tempForward.x).normalize();
-    coupleScene.members[0].group.position.copy(tempPos).addScaledVector(tempLateral, spacing * 0.5);
-    coupleScene.members[1].group.position.copy(tempPos).addScaledVector(tempLateral, -spacing * 0.5);
-
-    for (let i = 0; i < coupleScene.members.length; i += 1) {
-      const member = coupleScene.members[i];
-      member.group.rotation.y = Math.atan2(tempForward.x, tempForward.z);
-      updateWalkPose(member, coupleScene.animTime + i * 0.9, 0.28);
-    }
+    const swing = Math.sin(childScene.animTime * 5) * 0.4;
+    child.leftLegPivot.rotation.x = swing;
+    child.rightLegPivot.rotation.x = -swing;
+    child.leftArmPivot.rotation.x = -swing * 0.45;
+    child.rightArmPivot.rotation.x = -1 + Math.abs(Math.sin(childScene.animTime * 7.5)) * 1.1;
   }
 
   function updateIdle(delta) {
     idleScene.animTime += delta;
-    const sway = Math.sin(idleScene.animTime * 1.3) * 0.04;
-    idleScene.member.torso.rotation.z = sway;
-    idleScene.member.leftArmPivot.rotation.x = -0.12 + sway * 0.5;
-    idleScene.member.rightArmPivot.rotation.x = -0.08 - sway * 0.45;
+    const sway = Math.sin(idleScene.animTime * 0.6) * 0.02;
+    idle.torso.rotation.z = sway;
+    idle.head.rotation.x = Math.sin(idleScene.animTime * 0.6 + 0.8) * 0.03;
+    idle.leftArmPivot.rotation.x = -0.12 + sway * 0.6;
+    idle.rightArmPivot.rotation.x = -0.08 - sway * 0.6;
   }
 
   function update(delta) {
-    updateFamily(delta);
-    updateCouple(delta);
+    updateChild(delta);
     updateIdle(delta);
+    updateWalker(walkerA, delta);
+    updateWalker(walkerB, delta);
   }
 
   return {

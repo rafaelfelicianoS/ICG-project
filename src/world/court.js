@@ -83,26 +83,27 @@ function createParkSurfaceTexture() {
 }
 
 function createLinesTexture() {
-  const size = 2048;
+  const sizeX = 2048;
+  const sizeY = Math.round(sizeX * (COURT.length / COURT.width));
   const canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = sizeX;
+  canvas.height = sizeY;
   const ctx = canvas.getContext("2d");
 
-  const mapX = (x) => ((x + COURT.halfWidth) / COURT.width) * size;
-  const mapY = (z) => ((COURT.halfLength - z) / COURT.length) * size;
-  const radiusToPx = (radius) => (radius / COURT.width) * size;
-  const linePx = Math.max(2, (COURT.lineWidth / COURT.width) * size);
+  const mapX = (x) => ((x + COURT.halfWidth) / COURT.width) * sizeX;
+  const mapY = (z) => ((COURT.halfLength - z) / COURT.length) * sizeY;
+  const radiusToPx = (radius) => (radius / COURT.width) * sizeX;
+  const linePx = Math.max(2, (COURT.lineWidth / COURT.width) * sizeX);
 
   ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = linePx;
   ctx.lineCap = "round";
 
-  ctx.strokeRect(0, 0, size, size);
+  ctx.strokeRect(0, 0, sizeX, sizeY);
 
   ctx.beginPath();
   ctx.moveTo(0, mapY(0));
-  ctx.lineTo(size, mapY(0));
+  ctx.lineTo(sizeX, mapY(0));
   ctx.stroke();
 
   ctx.beginPath();

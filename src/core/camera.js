@@ -1,4 +1,4 @@
-import { COURT } from "./constants.js";
+import { CAM, COURT } from "./constants.js";
 import { THREE } from "./deps.js";
 
 function wrapAngle(angle) {
@@ -29,13 +29,12 @@ export function createFollowCamera(domElement) {
   const headOffset = new THREE.Vector3(0, 1.85, 0.05);
 
   let mode = "third_person";
-  let yaw = 0;
-  let targetYaw = 0;
+  let cameraYaw = Math.PI;
+  let cameraYawTarget = Math.PI;
   let flipping = false;
 
   let fpYaw = 0;
   let fpPitch = 0;
-  let pointerLocked = false;
 
   const shotLockOn = {
     active: false,
@@ -58,21 +57,21 @@ export function createFollowCamera(domElement) {
     }
   }
 
-  function onPointerLockChange() {
-    pointerLocked = document.pointerLockElement === domElement;
-  }
-
   function onMouseMove(event) {
-    if (mode !== "first_person" || !pointerLocked || shotLockOn.active) {
+    if (mode === "third_person") {
+      cameraYawTarget = wrapAngle(cameraYawTarget - event.movementX * CAM.orbitSensitivity);
       return;
     }
 
-    fpYaw -= event.movementX * 0.002;
+    if (mode !== "first_person" || shotLockOn.active) {
+      return;
+    }
+
+    fpYaw += event.movementX * 0.002;
     fpPitch -= event.movementY * 0.002;
     fpPitch = THREE.MathUtils.clamp(fpPitch, -Math.PI / 3, Math.PI / 3);
   }
 
-  document.addEventListener("pointerlockchange", onPointerLockChange);
   document.addEventListener("mousemove", onMouseMove);
 
   function updateFirstPerson(position, delta, playerYaw) {
@@ -96,21 +95,31 @@ export function createFollowCamera(domElement) {
 
     rotatedHeadOffset.copy(headOffset).applyAxisAngle(upAxis, playerYaw);
     camera.position.copy(position).add(rotatedHeadOffset);
-    camera.rotation.set(fpPitch, fpYaw, 0, "YXZ");
+    // `fpYaw` is stored in player/world convention (+Z forward).
+    // Three.js cameras face -Z by default, so we offset by PI when applying rotation.
+    camera.rotation.set(fpPitch, wrapAngle(fpYaw + Math.PI), 0, "YXZ");
   }
 
   function updateThirdPerson(position, offset, delta) {
+    const yawAlpha = 1 - Math.exp(-delta * CAM.lerpSpeed);
+    cameraYaw = lerpAngle(cameraYaw, cameraYawTarget, yawAlpha);
+
     if (flipping) {
-      const yawAlpha = 1 - Math.exp(-delta * 3);
-      yaw = lerpAngle(yaw, targetYaw, yawAlpha);
-      const remaining = Math.abs(wrapAngle(targetYaw - yaw));
+      const remaining = Math.abs(wrapAngle(cameraYawTarget - cameraYaw));
       if (remaining < 0.01) {
-        yaw = wrapAngle(targetYaw);
+        cameraYaw = wrapAngle(cameraYawTarget);
         flipping = false;
       }
     }
 
-    rotatedOffset.set(offset.x, offset.y, offset.z).applyAxisAngle(upAxis, yaw);
+    const finalOffset = offset ?? {
+      x: CAM.offsetX,
+      y: CAM.offsetY,
+      z: CAM.offsetZ,
+    };
+    rotatedOffset
+      .set(finalOffset.x, finalOffset.y, finalOffset.z)
+      .applyAxisAngle(upAxis, cameraYaw);
     desiredPosition.copy(rotatedOffset).add(position);
 
     const followAlpha = 1 - Math.exp(-delta * 8);
@@ -136,7 +145,7 @@ export function createFollowCamera(domElement) {
     if (mode !== "third_person" || flipping) {
       return false;
     }
-    targetYaw = wrapAngle(targetYaw + Math.PI);
+    cameraYawTarget = wrapAngle(cameraYawTarget + Math.PI);
     flipping = true;
     return true;
   }
@@ -147,13 +156,8 @@ export function createFollowCamera(domElement) {
       return out.normalize();
     }
 
-    cameraToPlayer.copy(playerPosition).sub(camera.position);
-    cameraToPlayer.y = 0;
-    if (cameraToPlayer.lengthSq() < 0.0001) {
-      out.set(Math.sin(yaw), 0, Math.cos(yaw));
-    } else {
-      out.copy(cameraToPlayer).normalize();
-    }
+    const movementYaw = wrapAngle(cameraYaw + Math.PI);
+    out.set(Math.sin(movementYaw), 0, Math.cos(movementYaw));
     return out;
   }
 
@@ -171,6 +175,7 @@ export function createFollowCamera(domElement) {
     mode = "third_person";
     shotLockOn.active = false;
     shotLockOn.transitioning = false;
+    fpPitch = 0;
     releasePointerLock();
     return mode;
   }
@@ -204,6 +209,7 @@ export function createFollowCamera(domElement) {
     }
     shotLockOn.active = false;
     shotLockOn.transitioning = false;
+    releasePointerLock();
   }
 
   function isShotLockOnActive() {
@@ -215,6 +221,20 @@ export function createFollowCamera(domElement) {
       return null;
     }
     return fpYaw;
+  }
+
+  function getOrbitYaw() {
+    return wrapAngle(cameraYaw + Math.PI);
+  }
+
+  function resetOrbitBehindPlayer(playerYaw = 0) {
+    if (mode !== "third_person") {
+      return false;
+    }
+    cameraYaw = wrapAngle(playerYaw + Math.PI);
+    cameraYawTarget = cameraYaw;
+    flipping = false;
+    return true;
   }
 
   function resize(width, height) {
@@ -233,6 +253,8 @@ export function createFollowCamera(domElement) {
     endShotLockOn,
     isShotLockOnActive,
     getLockOnYaw,
+    getOrbitYaw,
+    resetOrbitBehindPlayer,
     resize,
   };
 }

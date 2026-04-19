@@ -156,6 +156,10 @@ function update(delta) {
     }
   }
 
+  if (input.wasKeyPressed("KeyC")) {
+    followCamera.resetOrbitBehindPlayer(playerYaw);
+  }
+
   dayNight.update(delta);
   court.update(delta);
   const dayNightState = dayNight.getState();
@@ -226,10 +230,11 @@ function update(delta) {
     }
   }
 
+  updateShotLockLifecycle();
   previousBallPosition.copy(ballMesh.position);
 
   updateStateMachine();
-  followCamera.update(playerPosition, PLAYER.followOffset, delta, playerYaw);
+  followCamera.update(playerPosition, undefined, delta, playerYaw);
 }
 
 function updatePlayerMovement(delta, canMove) {
@@ -237,16 +242,21 @@ function updatePlayerMovement(delta, canMove) {
     return false;
   }
 
-  const moveX = (input.isDown("KeyA") ? 1 : 0) - (input.isDown("KeyD") ? 1 : 0);
+  const moveX = (input.isDown("KeyD") ? 1 : 0) - (input.isDown("KeyA") ? 1 : 0);
   const moveZ = (input.isDown("KeyW") ? 1 : 0) - (input.isDown("KeyS") ? 1 : 0);
   const isMoving = moveX !== 0 || moveZ !== 0;
   if (!isMoving) {
     return false;
   }
 
-  followCamera.getForwardXZ(playerPosition, tempVector);
-
-  tempVectorB.copy(worldUp).cross(tempVector).normalize();
+  if (followCamera.isFirstPerson()) {
+    followCamera.getForwardXZ(playerPosition, tempVector);
+    tempVectorB.copy(worldUp).cross(tempVector).normalize();
+  } else {
+    const cameraYaw = followCamera.getOrbitYaw();
+    tempVector.set(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    tempVectorB.set(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
+  }
 
   tempVectorC.copy(tempVector).multiplyScalar(moveZ);
   tempVectorC.addScaledVector(tempVectorB, moveX);
@@ -466,6 +476,26 @@ function updateRecoverSequence(delta) {
     shootSequence = null;
     activeShot = null;
     player.setShootingPose(0);
+  }
+}
+
+function updateShotLockLifecycle() {
+  if (!followCamera.isShotLockOnActive()) {
+    return;
+  }
+  if (hasBall || recoverySequence || !activeShot) {
+    return;
+  }
+
+  const velocitySq =
+    ballBody.velocity.x * ballBody.velocity.x +
+    ballBody.velocity.y * ballBody.velocity.y +
+    ballBody.velocity.z * ballBody.velocity.z;
+  const onGround = ballBody.position.y <= BALL.radius + 0.04 && Math.abs(ballBody.velocity.y) < 1.2;
+  const nearlyStopped = velocitySq < 0.09 && ballBody.position.y <= BALL.radius + 0.12;
+
+  if (onGround || nearlyStopped) {
+    followCamera.endShotLockOn();
   }
 }
 

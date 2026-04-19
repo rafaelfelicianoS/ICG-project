@@ -17,7 +17,7 @@ export const COURT = {
   backboardDepth: 0.05,
   backboardOffsetFromBaseline: 1.22,
   backboardCenterHeight: 3.43,
-  hoopOffsetFromBackboard: 0.15,
+  hoopOffsetFromBackboard: 0.4,
   wallHeight: 8,
 };
 
@@ -26,6 +26,14 @@ export const PLAYER = {
   rotationSpeed: 2,
   radius: 0.45,
   followOffset: { x: 0, y: 3.2, z: -5.5 },
+};
+
+export const CAM = {
+  offsetX: 0,
+  offsetY: 3.2,
+  offsetZ: 5.5,
+  orbitSensitivity: 0.003,
+  lerpSpeed: 8,
 };
 
 export const BALL = {
