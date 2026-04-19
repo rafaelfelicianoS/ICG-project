@@ -65,9 +65,7 @@ export function computeShotVelocity(origin, target, power, tuning = SHOT, timing
   const safeDenominator = Math.max(0.001, denominator);
   const idealSpeed = Math.sqrt((g * distance * distance) / safeDenominator);
   const timingWindow = timingWindowOverride ?? getShotTimingWindow(distance, tuning);
-  const speedBoost = THREE.MathUtils.lerp(tuning.idealSpeedBoostNear, tuning.idealSpeedBoostFar, timingWindow.difficulty);
-
-  let speed = idealSpeed * speedBoost;
+  const speed = idealSpeed;
   let horizontalError = 0;
   const isPerfect = power >= timingWindow.min && power <= timingWindow.max;
   const range = Math.max(0.001, Math.max(timingWindow.center, 1 - timingWindow.center));

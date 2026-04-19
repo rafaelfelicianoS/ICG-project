@@ -4,7 +4,7 @@
   - OpenAI ChatGPT
 */
 
-import { BALL, COURT, PHYSICS, PLAYER, PLAYER_ANIMATION, PLAYER_STATES, SHOT } from "./core/constants.js";
+import { BALL, COURT, PHYSICS, PLAYER, PLAYER_STATES, SHOT } from "./core/constants.js";
 import { THREE } from "./core/deps.js";
 import { createFollowCamera } from "./core/camera.js";
 import { InputController } from "./core/input.js";
@@ -38,7 +38,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 app.appendChild(renderer.domElement);
 
-const followCamera = createFollowCamera();
+const followCamera = createFollowCamera(renderer.domElement);
 const input = new InputController(renderer.domElement);
 const ui = createHUD();
 const audio = createAudioSystem();
@@ -56,6 +56,9 @@ let playerYaw = 0;
 let currentState = PLAYER_STATES.IDLE;
 
 player.setPositionAndYaw(playerPosition, playerYaw);
+if (player.setFirstPersonMode) {
+  player.setFirstPersonMode(false);
+}
 
 const tempBallAnchor = new THREE.Vector3();
 const tempReleaseAnchor = new THREE.Vector3();
@@ -140,6 +143,13 @@ function update(delta) {
     recoverBallToHands("manual");
   }
 
+  if (input.wasKeyPressed("KeyP")) {
+    const mode = followCamera.togglePerspective(playerYaw);
+    if (player.setFirstPersonMode) {
+      player.setFirstPersonMode(mode === "first_person");
+    }
+  }
+
   dayNight.update(delta);
   court.update(delta);
   const dayNightState = dayNight.getState();
@@ -157,9 +167,16 @@ function update(delta) {
   lastMovementState = isMoving;
 
   const newCourtSide = playerPosition.z === 0 ? lastCourtSide : Math.sign(playerPosition.z);
-  if (newCourtSide !== lastCourtSide) {
+  if (!followCamera.isFirstPerson() && newCourtSide !== lastCourtSide) {
     followCamera.requestHalfCourtFlip();
     lastCourtSide = newCourtSide;
+  }
+
+  if (followCamera.isFirstPerson()) {
+    const lockYaw = followCamera.getLockOnYaw();
+    if (lockYaw !== null) {
+      playerYaw = lockYaw;
+    }
   }
 
   player.setPositionAndYaw(playerPosition, playerYaw);
@@ -206,7 +223,7 @@ function update(delta) {
   previousBallPosition.copy(ballMesh.position);
 
   updateStateMachine();
-  followCamera.update(playerPosition, PLAYER.followOffset, delta);
+  followCamera.update(playerPosition, PLAYER.followOffset, delta, playerYaw);
 }
 
 function updatePlayerMovement(delta, canMove) {
@@ -256,6 +273,10 @@ function handleShootingInput(delta, nearestHoop) {
   if (!shootSequence && input.wasPointerPressed()) {
     audio.ensureContext();
     startShotCharge(shotCharge);
+    if (followCamera.isFirstPerson()) {
+      const lockYaw = Math.atan2(nearestHoop.rimCenter.x - playerPosition.x, nearestHoop.rimCenter.z - playerPosition.z);
+      followCamera.startLockOn(lockYaw, 0.35);
+    }
   }
 
   if (shotCharge.isCharging && !shootSequence) {
@@ -272,6 +293,7 @@ function handleShootingInput(delta, nearestHoop) {
     if (input.wasPointerReleased()) {
       const releasedPower = releaseShot(shotCharge);
       beginShot(releasedPower, nearestHoop, timingWindow);
+      followCamera.notifyShotReleased();
     }
   } else if (!shootSequence) {
     ui.setPower(0, false);
@@ -287,7 +309,7 @@ function beginShot(power, hoop, timingWindow) {
   player.triggerShoot();
 
   const shotDuration = 0.64;
-  const releaseNormalized = THREE.MathUtils.clamp(PLAYER_ANIMATION.shootReleaseNormalized, 0.2, 0.8);
+  const releaseNormalized = THREE.MathUtils.clamp(SHOT.shootReleaseNormalized, 0.2, 0.8);
 
   shootSequence = {
     power,

@@ -10,8 +10,8 @@ export const COURT = {
   freeThrowDistanceFromBaseline: 4.6,
   threePointRadius: 6.75,
   hoopHeight: 3.05,
-  rimRadius: 0.34,
-  rimTubeRadius: 0.03,
+  rimRadius: 0.4,
+  rimTubeRadius: 0.035,
   backboardWidth: 1.83,
   backboardHeight: 1.07,
   backboardDepth: 0.05,
@@ -26,25 +26,6 @@ export const PLAYER = {
   rotationSpeed: 2,
   radius: 0.45,
   followOffset: { x: 0, y: 3.2, z: -5.5 },
-};
-
-export const PLAYER_ANIMATION = {
-  enabled: true,
-  scale: 0.01,
-  modelYawOffset: 0,
-  crossFadeSec: 0.18,
-  shootBlendInSec: 0.12,
-  celebrateBlendInSec: 0.12,
-  oneShotBlendOutSec: 0.2,
-  shootReleaseNormalized: 0.35,
-  assetPaths: {
-    character: "./assets/player/character.fbx",
-    idle: "./assets/player/idle.fbx",
-    walk: "./assets/player/walk.fbx",
-    dribble: "./assets/player/dribble.fbx",
-    shoot: "./assets/player/shoot.fbx",
-    celebrate: "./assets/player/celebrate.fbx",
-  },
 };
 
 export const BALL = {
@@ -65,7 +46,7 @@ export const PHYSICS = {
   fixedTimeStep: 1 / 60,
   maxSubSteps: 3,
   rimSegments: 12,
-  rimSegmentRadius: 0.03,
+  rimSegmentRadius: 0.035,
 };
 
 export const SHOT = {
@@ -80,8 +61,7 @@ export const SHOT = {
   perfectWindowFar: 0.06,
   maxHorizontalErrorNearDeg: 2.2,
   maxHorizontalErrorFarDeg: 6.2,
-  idealSpeedBoostNear: 1.03,
-  idealSpeedBoostFar: 1.0,
+  shootReleaseNormalized: 0.35,
 };
 
 export const PLAYER_STATES = Object.freeze({

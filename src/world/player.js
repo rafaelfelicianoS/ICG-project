@@ -1,40 +1,35 @@
-/*
-  ICG 2025/2026 - Mini-Jogo de Basquetebol 3D
-  Fontes externas referenciadas:
-  - Mixamo (Adobe) para personagem/animacoes FBX: https://www.mixamo.com
-  - OpenAI ChatGPT para apoio ao desenvolvimento.
-*/
-
-import { PLAYER_ANIMATION } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
 
-const CLIP_NAMES = ["idle", "walk", "dribble", "shoot", "celebrate"];
-const FBX_LOADER_MODULE_URL = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/loaders/FBXLoader.js";
-const tempAnchorOffset = new THREE.Vector3();
-const tempHandQuat = new THREE.Quaternion();
+function lerpValue(current, target, alpha) {
+  return THREE.MathUtils.lerp(current, target, alpha);
+}
 
-function createFallbackPlayer() {
+export function createPlayer(scene) {
   const group = new THREE.Group();
+  const bodyRoot = new THREE.Group();
+  group.add(bodyRoot);
+
   const skin = new THREE.MeshStandardMaterial({ color: 0xf3d4b8, roughness: 0.6 });
   const jersey = new THREE.MeshStandardMaterial({ color: 0x1f4b99, roughness: 0.4 });
   const shorts = new THREE.MeshStandardMaterial({ color: 0x0f2f6f, roughness: 0.45 });
   const socks = new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: 0.5 });
+  const shoes = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.5 });
 
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.95, 0.42), jersey);
   torso.position.y = 1.2;
   torso.castShadow = true;
   torso.receiveShadow = true;
-  group.add(torso);
+  bodyRoot.add(torso);
 
   const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.36), shorts);
   pelvis.position.y = 0.63;
   pelvis.castShadow = true;
-  group.add(pelvis);
+  bodyRoot.add(pelvis);
 
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 22, 20), skin);
   head.position.y = 1.92;
   head.castShadow = true;
-  group.add(head);
+  bodyRoot.add(head);
 
   const leftArmPivot = new THREE.Group();
   leftArmPivot.position.set(-0.42, 1.54, 0);
@@ -42,7 +37,7 @@ function createFallbackPlayer() {
   leftArm.position.y = -0.28;
   leftArm.castShadow = true;
   leftArmPivot.add(leftArm);
-  group.add(leftArmPivot);
+  bodyRoot.add(leftArmPivot);
 
   const rightArmPivot = new THREE.Group();
   rightArmPivot.position.set(0.42, 1.54, 0);
@@ -50,69 +45,33 @@ function createFallbackPlayer() {
   rightArm.position.y = -0.28;
   rightArm.castShadow = true;
   rightArmPivot.add(rightArm);
-  group.add(rightArmPivot);
+  bodyRoot.add(rightArmPivot);
 
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.position.set(-0.16, 0.42, 0);
   const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.88, 14), socks);
-  leftLeg.position.set(-0.16, 0.2, 0);
+  leftLeg.position.y = -0.44;
   leftLeg.castShadow = true;
-  group.add(leftLeg);
+  leftLegPivot.add(leftLeg);
+  bodyRoot.add(leftLegPivot);
 
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.position.set(0.16, 0.42, 0);
   const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.88, 14), socks);
-  rightLeg.position.set(0.16, 0.2, 0);
+  rightLeg.position.y = -0.44;
   rightLeg.castShadow = true;
-  group.add(rightLeg);
+  rightLegPivot.add(rightLeg);
+  bodyRoot.add(rightLegPivot);
 
-  return {
-    group,
-    setShootingPose(blend) {
-      const clamped = THREE.MathUtils.clamp(blend, 0, 1);
-      const lift = -1.9 * clamped;
-      leftArmPivot.rotation.x = lift;
-      rightArmPivot.rotation.x = lift;
-    },
-    setCelebratePose(blend) {
-      const clamped = THREE.MathUtils.clamp(blend, 0, 1);
-      leftArmPivot.rotation.x = -2.2 * clamped;
-      rightArmPivot.rotation.x = -2.2 * clamped;
-    },
-    getBallAnchor(out) {
-      out.set(0.48, 1.12, 0.6);
-      return group.localToWorld(out);
-    },
-    getReleaseAnchor(out) {
-      out.set(0.18, 1.95, 0.74);
-      return group.localToWorld(out);
-    },
-  };
-}
+  const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.35), shoes);
+  leftShoe.position.set(-0.16, -0.04, 0.08);
+  leftShoe.castShadow = true;
+  bodyRoot.add(leftShoe);
 
-function findBone(root, name) {
-  let exactMatch = null;
-  let partialMatch = null;
-  root.traverse((node) => {
-    if (exactMatch || !node.isBone) {
-      return;
-    }
-    if (node.name === name) {
-      exactMatch = node;
-      return;
-    }
-    if (!partialMatch && node.name.toLowerCase().includes(name.toLowerCase())) {
-      partialMatch = node;
-    }
-  });
-  return exactMatch || partialMatch;
-}
-
-export function createPlayer(scene) {
-  const group = new THREE.Group();
-  const fallback = createFallbackPlayer();
-  group.add(fallback.group);
-
-  const animatedContainer = new THREE.Group();
-  animatedContainer.rotation.y = PLAYER_ANIMATION.modelYawOffset;
-  animatedContainer.visible = false;
-  group.add(animatedContainer);
+  const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.35), shoes);
+  rightShoe.position.set(0.16, -0.04, 0.08);
+  rightShoe.castShadow = true;
+  bodyRoot.add(rightShoe);
 
   const shadowBlob = new THREE.Mesh(
     new THREE.CircleGeometry(0.45, 28),
@@ -124,254 +83,158 @@ export function createPlayer(scene) {
   scene.add(group);
   scene.add(shadowBlob);
 
-  let mixer = null;
-  let currentActionName = null;
-  let currentAction = null;
-  let activeOneShot = null;
-  let desiredLocomotion = "idle";
-  let animatedReady = false;
-  let rightHandBone = null;
+  let animTime = 0;
+  let shootBlend = 0;
+  let celebrateBlend = 0;
+  let jumpOffsetY = 0;
+  let firstPersonMode = false;
 
-  const actions = new Map();
-  let loader = null;
-  const handBallOffset = new THREE.Vector3(0.03, -0.06, 0.12);
-  const handReleaseOffset = new THREE.Vector3(0.01, 0.08, 0.26);
+  const currentPose = {
+    leftLegX: 0,
+    rightLegX: 0,
+    leftArmX: 0,
+    rightArmX: 0,
+    torsoX: 0,
+    headX: 0,
+  };
 
-  function getAssetPath(name) {
-    return PLAYER_ANIMATION.assetPaths[name];
+  const targetPose = {
+    leftLegX: 0,
+    rightLegX: 0,
+    leftArmX: 0,
+    rightArmX: 0,
+    torsoX: 0,
+    headX: 0,
+  };
+
+  function resetTargetPose() {
+    targetPose.leftLegX = 0;
+    targetPose.rightLegX = 0;
+    targetPose.leftArmX = 0;
+    targetPose.rightArmX = 0;
+    targetPose.torsoX = 0;
+    targetPose.headX = 0;
   }
 
-  function loadFBX(path) {
-    if (!loader) {
-      return Promise.reject(new Error("FBXLoader nao inicializado."));
-    }
-    return new Promise((resolve, reject) => {
-      loader.load(path, resolve, undefined, reject);
-    });
-  }
-
-  function prepareCharacter(character) {
-    character.scale.setScalar(PLAYER_ANIMATION.scale);
-    character.position.set(0, 0, 0);
-    character.traverse((node) => {
-      if (!node.isMesh) {
-        return;
-      }
-      node.castShadow = true;
-      node.receiveShadow = true;
-    });
-    rightHandBone = findBone(character, "mixamorigRightHand") || findBone(character, "RightHand");
-    animatedContainer.add(character);
-  }
-
-  function configureActions(clipMap) {
-    mixer = new THREE.AnimationMixer(animatedContainer);
-    mixer.addEventListener("finished", (event) => {
-      if (!activeOneShot) {
-        return;
-      }
-      const oneShotAction = actions.get(activeOneShot.name);
-      if (event.action !== oneShotAction) {
-        return;
-      }
-      const blendOutSec = activeOneShot.blendOutSec;
-      activeOneShot = null;
-      playAction(desiredLocomotion, blendOutSec, false);
-    });
-
-    for (const clipName of CLIP_NAMES) {
-      const clip = clipMap[clipName];
-      if (!clip) {
-        continue;
-      }
-      const action = mixer.clipAction(clip);
-      action.enabled = true;
-      action.setLoop(
-        clipName === "shoot" || clipName === "celebrate" ? THREE.LoopOnce : THREE.LoopRepeat,
-        clipName === "shoot" || clipName === "celebrate" ? 1 : Infinity
-      );
-      action.clampWhenFinished = clipName === "shoot" || clipName === "celebrate";
-      actions.set(clipName, action);
-    }
-  }
-
-  function playAction(name, fadeSec, forceReset) {
-    const nextAction = actions.get(name);
-    if (!nextAction) {
-      return false;
-    }
-
-    if (!forceReset && currentActionName === name && currentAction === nextAction) {
-      return true;
-    }
-
-    if (currentAction && currentAction !== nextAction) {
-      nextAction.reset();
-      nextAction.play();
-      nextAction.crossFadeFrom(currentAction, fadeSec, false);
-    } else {
-      if (forceReset) {
-        nextAction.reset();
-      }
-      nextAction.play();
-    }
-
-    currentActionName = name;
-    currentAction = nextAction;
-    return true;
-  }
-
-  function pickLocomotion(animContext) {
-    if (animContext.hasBall && animContext.isMoving) {
-      return "dribble";
-    }
-    if (animContext.isMoving) {
-      return "walk";
-    }
-    return "idle";
-  }
-
-  function triggerOneShot(name, blendInSec) {
-    if (!animatedReady || !actions.has(name)) {
-      return false;
-    }
-    activeOneShot = {
-      name,
-      blendOutSec: PLAYER_ANIMATION.oneShotBlendOutSec,
-    };
-    return playAction(name, blendInSec, true);
-  }
-
-  async function initAnimatedPlayer() {
-    if (!PLAYER_ANIMATION.enabled) {
-      return;
-    }
-
-    try {
-      const loaderModule = await import(FBX_LOADER_MODULE_URL);
-      if (!loaderModule || !loaderModule.FBXLoader) {
-        throw new Error("Modulo FBXLoader indisponivel.");
-      }
-      loader = new loaderModule.FBXLoader();
-
-      const character = await loadFBX(getAssetPath("character"));
-      prepareCharacter(character);
-
-      const clipMap = {};
-      for (const clipName of CLIP_NAMES) {
-        const clipAsset = await loadFBX(getAssetPath(clipName));
-        if (clipAsset.animations && clipAsset.animations.length > 0) {
-          const clip = clipAsset.animations[0].clone();
-          clip.name = clipName;
-          clipMap[clipName] = clip;
-        }
-      }
-
-      if (!clipMap.idle || !clipMap.walk || !clipMap.dribble) {
-        throw new Error("Conjunto de clips Mixamo incompleto (idle/walk/dribble sao obrigatorios).");
-      }
-
-      configureActions(clipMap);
-      playAction("idle", 0.01, true);
-      animatedReady = true;
-      fallback.group.visible = false;
-      animatedContainer.visible = true;
-      console.info("[player] Mixamo rig ativo.");
-    } catch (error) {
-      animatedReady = false;
-      fallback.group.visible = true;
-      animatedContainer.visible = false;
-      console.warn("[player] Nao foi possivel carregar o rig Mixamo. Mantido fallback procedural.", error);
-    }
+  function applyShadowByJump() {
+    shadowBlob.material.opacity = 0.3 - Math.min(0.18, jumpOffsetY * 0.8);
   }
 
   function setPositionAndYaw(position, yaw) {
     group.position.copy(position);
+    group.position.y = Math.max(0, jumpOffsetY);
     group.rotation.y = yaw;
     shadowBlob.position.set(position.x, 0.01, position.z);
   }
 
   function setShootingPose(blend) {
-    if (animatedReady) {
-      return;
-    }
-    fallback.setShootingPose(blend);
+    shootBlend = THREE.MathUtils.clamp(blend, 0, 1);
   }
 
   function setCelebratePose(blend) {
-    if (animatedReady) {
-      return;
-    }
-    fallback.setCelebratePose(blend);
+    celebrateBlend = THREE.MathUtils.clamp(blend, 0, 1);
   }
 
   function setJumpOffset(offsetY) {
-    if (animatedReady) {
-      return;
-    }
-    group.position.y = Math.max(0, offsetY);
-    shadowBlob.material.opacity = 0.3 - Math.min(0.18, offsetY * 0.8);
+    jumpOffsetY = Math.max(0, offsetY);
+    group.position.y = jumpOffsetY;
+    applyShadowByJump();
   }
 
   function resetJumpOffset() {
-    if (animatedReady) {
-      shadowBlob.material.opacity = 0.3;
-      return;
-    }
+    jumpOffsetY = 0;
     group.position.y = 0;
     shadowBlob.material.opacity = 0.3;
   }
 
-  function getHandAnchoredPoint(out, localOffset, fallbackAnchorFn) {
-    if (!rightHandBone) {
-      return fallbackAnchorFn(out);
-    }
-    rightHandBone.getWorldPosition(out);
-    rightHandBone.getWorldQuaternion(tempHandQuat);
-    tempAnchorOffset.copy(localOffset).applyQuaternion(tempHandQuat);
-    out.add(tempAnchorOffset);
-    return out;
-  }
-
   function getBallAnchor(out) {
-    if (!animatedReady) {
-      return fallback.getBallAnchor(out);
-    }
-    return getHandAnchoredPoint(out, handBallOffset, fallback.getBallAnchor);
+    out.set(0.12, -0.5, 0.16);
+    return rightArmPivot.localToWorld(out);
   }
 
   function getReleaseAnchor(out) {
-    if (!animatedReady) {
-      return fallback.getReleaseAnchor(out);
-    }
-    return getHandAnchoredPoint(out, handReleaseOffset, fallback.getReleaseAnchor);
+    out.set(0.04, -0.34, 0.5);
+    return rightArmPivot.localToWorld(out);
   }
 
-  function update(delta, animContext) {
-    if (!animatedReady || !mixer) {
-      return;
+  function update(delta, animContext = {}) {
+    animTime += delta;
+    resetTargetPose();
+
+    const isCelebrating = celebrateBlend > 0.001 || animContext.isCelebrating;
+    const isShooting = shootBlend > 0.001 || animContext.isCharging || animContext.isShootingSequence;
+
+    if (isCelebrating) {
+      const blend = THREE.MathUtils.clamp(Math.max(celebrateBlend, animContext.isCelebrating ? 1 : 0), 0, 1);
+      targetPose.leftArmX = -2.2 * blend;
+      targetPose.rightArmX = -2.2 * blend;
+      targetPose.torsoX = -0.26 * blend;
+      targetPose.headX = Math.sin(animTime * 12) * 0.15 * blend;
+      targetPose.leftLegX = Math.sin(animTime * 6) * 0.08 * blend;
+      targetPose.rightLegX = -Math.sin(animTime * 6) * 0.08 * blend;
+    } else if (isShooting) {
+      const blend = THREE.MathUtils.clamp(Math.max(shootBlend, animContext.isCharging ? 0.35 : 0), 0, 1);
+      targetPose.leftArmX = -1.9 * blend;
+      targetPose.rightArmX = -1.9 * blend;
+      targetPose.torsoX = 0.06 * blend;
+      targetPose.leftLegX = -0.08 * blend;
+      targetPose.rightLegX = -0.08 * blend;
+    } else if (animContext.isMoving) {
+      const swing = Math.sin(animTime * 10);
+      targetPose.leftLegX = swing * 0.45;
+      targetPose.rightLegX = -swing * 0.45;
+
+      if (animContext.hasBall) {
+        targetPose.leftArmX = -swing * 0.22;
+        targetPose.rightArmX = Math.sin(animTime * 10) * 0.28 - 0.45;
+        targetPose.torsoX = Math.sin(animTime * 5) * 0.035;
+      } else {
+        targetPose.leftArmX = -swing * 0.3;
+        targetPose.rightArmX = swing * 0.3;
+        targetPose.torsoX = 0;
+      }
+    } else if (animContext.hasBall) {
+      targetPose.rightArmX = Math.sin(animTime * 8) * 0.4 - 0.3;
+      targetPose.leftArmX = Math.sin(animTime * 6 + Math.PI * 0.25) * 0.08;
+      targetPose.torsoX = Math.sin(animTime * 4) * 0.03;
     }
 
-    desiredLocomotion = pickLocomotion(animContext);
-    if (!activeOneShot) {
-      playAction(desiredLocomotion, PLAYER_ANIMATION.crossFadeSec, false);
-    }
-    mixer.update(delta);
+    const alpha = 1 - Math.exp(-delta * 8);
+    currentPose.leftLegX = lerpValue(currentPose.leftLegX, targetPose.leftLegX, alpha);
+    currentPose.rightLegX = lerpValue(currentPose.rightLegX, targetPose.rightLegX, alpha);
+    currentPose.leftArmX = lerpValue(currentPose.leftArmX, targetPose.leftArmX, alpha);
+    currentPose.rightArmX = lerpValue(currentPose.rightArmX, targetPose.rightArmX, alpha);
+    currentPose.torsoX = lerpValue(currentPose.torsoX, targetPose.torsoX, alpha);
+    currentPose.headX = lerpValue(currentPose.headX, targetPose.headX, alpha);
+
+    leftLegPivot.rotation.x = currentPose.leftLegX;
+    rightLegPivot.rotation.x = currentPose.rightLegX;
+    leftArmPivot.rotation.x = currentPose.leftArmX;
+    rightArmPivot.rotation.x = currentPose.rightArmX;
+    torso.rotation.x = currentPose.torsoX;
+    head.rotation.x = currentPose.headX;
+    pelvis.rotation.x = currentPose.torsoX * 0.35;
+
+    bodyRoot.visible = !firstPersonMode;
   }
 
   function triggerShoot() {
-    return triggerOneShot("shoot", PLAYER_ANIMATION.shootBlendInSec);
+    shootBlend = Math.max(shootBlend, 0.6);
+    return true;
   }
 
   function triggerCelebrate() {
-    return triggerOneShot("celebrate", PLAYER_ANIMATION.celebrateBlendInSec);
+    celebrateBlend = Math.max(celebrateBlend, 1);
+    return true;
   }
 
   function isAnimatedReady() {
-    return animatedReady;
+    return true;
   }
 
-  initAnimatedPlayer();
+  function setFirstPersonMode(enabled) {
+    firstPersonMode = !!enabled;
+  }
 
   return {
     group,
@@ -386,5 +249,6 @@ export function createPlayer(scene) {
     triggerShoot,
     triggerCelebrate,
     isAnimatedReady,
+    setFirstPersonMode,
   };
 }

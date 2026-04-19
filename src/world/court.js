@@ -344,7 +344,7 @@ export function createCourt(scene) {
     new THREE.PlaneGeometry(COURT.width, COURT.length),
     new THREE.MeshStandardMaterial({
       map: createParkSurfaceTexture(),
-      roughness: 0.88,
+      roughness: 0.82,
       metalness: 0,
     })
   );

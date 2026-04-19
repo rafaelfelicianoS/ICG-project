@@ -1,6 +1,6 @@
-import { COURT } from "../core/constants.js";
+import { BALL, COURT } from "../core/constants.js";
 
-export function detectBasketScore(prevBallPos, currBallPos, rimCenter, rimRadius, ballRadius = 0.12) {
+export function detectBasketScore(prevBallPos, currBallPos, rimCenter, rimRadius, ballRadius = BALL.radius) {
   const crossedDownward = prevBallPos.y > rimCenter.y && currBallPos.y <= rimCenter.y;
   if (!crossedDownward) {
     return false;
