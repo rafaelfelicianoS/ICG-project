@@ -1,0 +1,11 @@
+Creditos e Referencias - ICG 2025/2026
+
+IA (apoio ao desenvolvimento e codigo):
+- OpenAI. (2026). ChatGPT [Large language model]. https://chat.openai.com
+
+Assets/Animacoes externas:
+- Adobe Mixamo. (2026). Personagens e animacoes FBX. https://www.mixamo.com
+
+Notas:
+- O jogo e implementado em Three.js + Cannon.js.
+- Os assets Mixamo devem ser creditados tambem nos slides finais e, se aplicavel, no video.

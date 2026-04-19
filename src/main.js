@@ -4,7 +4,7 @@
   - OpenAI ChatGPT
 */
 
-import { BALL, COURT, PHYSICS, PLAYER, PLAYER_STATES, SHOT } from "./core/constants.js";
+import { BALL, COURT, PHYSICS, PLAYER, PLAYER_ANIMATION, PLAYER_STATES, SHOT } from "./core/constants.js";
 import { THREE } from "./core/deps.js";
 import { createFollowCamera } from "./core/camera.js";
 import { InputController } from "./core/input.js";
@@ -164,6 +164,13 @@ function update(delta) {
 
   player.setPositionAndYaw(playerPosition, playerYaw);
   updatePlayerPose(delta);
+  player.update(delta, {
+    isMoving,
+    hasBall,
+    isCharging: shotCharge.isCharging,
+    isShootingSequence: !!shootSequence,
+    isCelebrating: celebrationTimer > 0,
+  });
 
   const nearestHoop = findNearestHoop(playerPosition);
   tempVec2.set(playerPosition.x, playerPosition.z);
@@ -207,7 +214,7 @@ function updatePlayerMovement(delta, canMove) {
     return false;
   }
 
-  const moveX = (input.isDown("KeyA") ? 1 : 0) - (input.isDown("KeyD") ? 1 : 0);
+  const moveX = (input.isDown("KeyD") ? 1 : 0) - (input.isDown("KeyA") ? 1 : 0);
   const moveZ = (input.isDown("KeyW") ? 1 : 0) - (input.isDown("KeyS") ? 1 : 0);
   const isMoving = moveX !== 0 || moveZ !== 0;
   if (!isMoving) {
@@ -277,14 +284,18 @@ function handleShootingInput(delta, nearestHoop) {
 function beginShot(power, hoop, timingWindow) {
   stats.attempts += 1;
   ui.updateStats(stats);
+  player.triggerShoot();
+
+  const shotDuration = 0.64;
+  const releaseNormalized = THREE.MathUtils.clamp(PLAYER_ANIMATION.shootReleaseNormalized, 0.2, 0.8);
 
   shootSequence = {
     power,
     targetHoopId: hoop.id,
     timingWindow,
     timer: 0,
-    releaseTime: 0.2,
-    duration: 0.64,
+    releaseTime: shotDuration * releaseNormalized,
+    duration: shotDuration,
     released: false,
   };
 
@@ -476,6 +487,7 @@ function registerScore(shotRecord, hoop) {
   court.disturbNet(hoop.id, tempNetImpact, 0.2);
   ui.flashSuccess();
   audio.playBasket();
+  player.triggerCelebrate();
   celebrationTimer = 0.75;
 }
 

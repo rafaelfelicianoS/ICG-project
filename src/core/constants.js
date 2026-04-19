@@ -28,6 +28,25 @@ export const PLAYER = {
   followOffset: { x: 0, y: 3.2, z: -5.5 },
 };
 
+export const PLAYER_ANIMATION = {
+  enabled: true,
+  scale: 0.01,
+  modelYawOffset: 0,
+  crossFadeSec: 0.18,
+  shootBlendInSec: 0.12,
+  celebrateBlendInSec: 0.12,
+  oneShotBlendOutSec: 0.2,
+  shootReleaseNormalized: 0.35,
+  assetPaths: {
+    character: "./assets/player/character.fbx",
+    idle: "./assets/player/idle.fbx",
+    walk: "./assets/player/walk.fbx",
+    dribble: "./assets/player/dribble.fbx",
+    shoot: "./assets/player/shoot.fbx",
+    celebrate: "./assets/player/celebrate.fbx",
+  },
+};
+
 export const BALL = {
   radius: 0.18,
   mass: 0.6,
