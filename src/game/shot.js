@@ -6,6 +6,57 @@ function getDistanceDifficulty(distance, tuning = SHOT) {
   return THREE.MathUtils.clamp((distance - tuning.nearDistance) / range, 0, 1);
 }
 
+function computeAimTarget(origin, target, tuning = SHOT) {
+  const aimedTarget = new THREE.Vector3(target.x, target.y, target.z);
+  const toTarget = new THREE.Vector3(target.x - origin.x, 0, target.z - origin.z);
+  const distance = toTarget.length();
+  if (distance < 0.001) {
+    return { aimedTarget, distance };
+  }
+
+  const closeAimDistance = Math.max(0.001, tuning.closeAimDistance ?? 0.001);
+  const closeFactor = THREE.MathUtils.clamp(1 - distance / closeAimDistance, 0, 1);
+  if (closeFactor > 0) {
+    toTarget.normalize();
+    aimedTarget.addScaledVector(toTarget, (tuning.closeAimBackOffset ?? 0) * closeFactor);
+    aimedTarget.y += (tuning.closeAimYOffset ?? 0) * closeFactor;
+  }
+
+  const adjustedHorizontal = new THREE.Vector3(aimedTarget.x - origin.x, 0, aimedTarget.z - origin.z);
+  return { aimedTarget, distance: adjustedHorizontal.length() };
+}
+
+function computeLaunchAngleRad(distance, deltaY, tuning = SHOT) {
+  const difficulty = getDistanceDifficulty(distance, tuning);
+  const nearAngle = tuning.nearIdealAngleDeg ?? tuning.idealAngleDeg;
+  const farAngle = tuning.farIdealAngleDeg ?? tuning.idealAngleDeg;
+  const minAngle = tuning.minLaunchAngleDeg ?? 35;
+  const maxAngle = tuning.maxLaunchAngleDeg ?? 75;
+
+  let angleDeg = THREE.MathUtils.clamp(THREE.MathUtils.lerp(nearAngle, farAngle, difficulty), minAngle, maxAngle);
+  let angleRad = THREE.MathUtils.degToRad(angleDeg);
+  let cos = Math.cos(angleRad);
+  let tan = Math.tan(angleRad);
+  let denominator = 2 * cos * cos * (distance * tan - deltaY);
+
+  if (denominator <= 0.001) {
+    for (let i = 1; i <= 12; i += 1) {
+      const tryDeg = THREE.MathUtils.lerp(angleDeg, maxAngle, i / 12);
+      const tryRad = THREE.MathUtils.degToRad(tryDeg);
+      const tryCos = Math.cos(tryRad);
+      const tryTan = Math.tan(tryRad);
+      const tryDenominator = 2 * tryCos * tryCos * (distance * tryTan - deltaY);
+      if (tryDenominator > 0.001) {
+        angleDeg = tryDeg;
+        angleRad = tryRad;
+        break;
+      }
+    }
+  }
+
+  return { angleRad, angleDeg };
+}
+
 export function getShotTimingWindow(distance, tuning = SHOT) {
   const difficulty = getDistanceDifficulty(distance, tuning);
   const center = (tuning.perfectMin + tuning.perfectMax) * 0.5;
@@ -48,16 +99,17 @@ export function releaseShot(state) {
 }
 
 export function computeShotVelocity(origin, target, power, tuning = SHOT, timingWindowOverride = null) {
-  const horizontal = new THREE.Vector3(target.x - origin.x, 0, target.z - origin.z);
+  const { aimedTarget } = computeAimTarget(origin, target, tuning);
+  const horizontal = new THREE.Vector3(aimedTarget.x - origin.x, 0, aimedTarget.z - origin.z);
   const distance = horizontal.length();
   if (distance < 0.001) {
     return { x: 0, y: 7.8, z: 0, isPerfect: false, speed: 7.8, idealSpeed: 7.8 };
   }
 
   horizontal.normalize();
-  const deltaY = target.y - origin.y;
+  const deltaY = aimedTarget.y - origin.y;
   const g = 9.82;
-  const angleRad = THREE.MathUtils.degToRad(tuning.idealAngleDeg);
+  const { angleRad, angleDeg } = computeLaunchAngleRad(distance, deltaY, tuning);
   const cos = Math.cos(angleRad);
   const sin = Math.sin(angleRad);
   const tan = Math.tan(angleRad);
@@ -87,6 +139,7 @@ export function computeShotVelocity(origin, target, power, tuning = SHOT, timing
     isPerfect,
     speed,
     idealSpeed,
+    angleDeg,
     timingWindow,
   };
 }

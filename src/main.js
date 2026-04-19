@@ -249,14 +249,15 @@ function updatePlayerMovement(delta, canMove) {
     return false;
   }
 
-  if (followCamera.isFirstPerson()) {
-    followCamera.getForwardXZ(playerPosition, tempVector);
-    tempVectorB.copy(worldUp).cross(tempVector).normalize();
-  } else {
+  followCamera.camera.getWorldDirection(tempVector);
+  tempVector.y = 0;
+  if (tempVector.lengthSq() < 0.0001) {
     const cameraYaw = followCamera.getOrbitYaw();
     tempVector.set(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
-    tempVectorB.set(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
+  } else {
+    tempVector.normalize();
   }
+  tempVectorB.copy(tempVector).cross(worldUp).normalize();
 
   tempVectorC.copy(tempVector).multiplyScalar(moveZ);
   tempVectorC.addScaledVector(tempVectorB, moveX);
