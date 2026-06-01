@@ -1,3 +1,205 @@
+/* ─── Botão de modo ─────────────────────────────────────────────────── */
+#mode-btn {
+  position: absolute;
+  top: 12.2rem;
+  right: 1rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(13, 71, 161, 0.7);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+#mode-btn:hover { background: rgba(13, 71, 161, 0.92); }
+
+/* ─── Painel de seleção de modo ─────────────────────────────────────── */
+#mode-panel {
+  position: absolute;
+  top: 15rem;
+  right: 1rem;
+  width: min(220px, 88vw);
+  border-radius: 12px;
+  padding: 0.9rem;
+  background: rgba(13, 27, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+#mode-panel.hidden { display: none; }
+#mode-panel h2 {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08rem;
+  color: #d7dfeb;
+}
+.mode-option {
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.06);
+  color: #edf2f4;
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: left;
+  pointer-events: auto;
+}
+.mode-option:hover { background: rgba(255,255,255,0.14); }
+.mode-option.active {
+  background: rgba(13, 71, 161, 0.55);
+  border-color: rgba(73, 209, 124, 0.5);
+  color: #ffffff;
+}
+
+/* ─── Painel de resultado ───────────────────────────────────────────── */
+#result-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(340px, 90vw);
+  border-radius: 16px;
+  padding: 1.4rem 1.6rem;
+  background: rgba(13, 27, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  text-align: center;
+}
+#result-panel.hidden { display: none; }
+#result-title {
+  margin: 0 0 0.7rem;
+  font-size: 1.15rem;
+  color: #49d17c;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+}
+#result-body {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  color: #d7dfeb;
+  line-height: 1.6;
+}
+#result-play-again {
+  padding: 0.5rem 1.4rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.28);
+  background: rgba(13, 71, 161, 0.7);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+}
+#result-play-again:hover { background: rgba(13, 71, 161, 0.92); }
+
+/* ─── HUD de modo (contador / timer) ───────────────────────────────── */
+#mode-hud {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(13, 27, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 0.3rem 1rem 0.4rem;
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+#mode-hud.hidden { display: none; }
+#mode-hud-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.1rem;
+  color: #c8d4e0;
+  text-transform: uppercase;
+}
+#mode-hud-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+@media (max-width: 780px) {
+  #mode-btn {
+    top: auto;
+    bottom: 1.2rem;
+    right: 0.65rem;
+  }
+  #mode-panel {
+    top: auto;
+    bottom: 3.8rem;
+    right: 0.65rem;
+  }
+}
+
+/* Brilho pulsante na zona perfeita quando o timing está correto */
+@keyframes perfectPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(73, 209, 124, 0.7); background: rgba(73, 209, 124, 0.55); }
+  50%  { box-shadow: 0 0 0 4px rgba(73, 209, 124, 0.3); background: rgba(73, 209, 124, 0.75); }
+  100% { box-shadow: 0 0 0 0 rgba(73, 209, 124, 0.7); background: rgba(73, 209, 124, 0.55); }
+}
+
+#perfect-zone.perfect-active {
+  animation: perfectPulse 0.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+#debug-overlay {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  max-width: 440px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #7fffb2;
+  font-size: 0.7rem;
+  font-family: monospace;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: pre;
+  line-height: 1.55;
+  border: 1px solid rgba(127, 255, 178, 0.2);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#debug-overlay.hidden {
+  display: none;
+}
+
+#reset-btn {
+  position: absolute;
+  top: 9.2rem;
+  right: 1rem;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(198, 40, 40, 0.7);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06rem;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#reset-btn:hover {
+  background: rgba(198, 40, 40, 0.92);
+}
+
 #customize-btn {
   position: absolute;
   top: 6.3rem;
@@ -25,7 +227,7 @@
 
 #customize-panel {
   position: absolute;
-  top: 9.2rem;
+  top: 11.8rem;
   right: 1rem;
   width: min(280px, 92vw);
   border-radius: 12px;
@@ -104,6 +306,12 @@
 }
 
 @media (max-width: 780px) {
+  #reset-btn {
+    top: auto;
+    bottom: 4.2rem;
+    right: 0.65rem;
+  }
+
   #customize-btn {
     top: auto;
     bottom: 7.1rem;
@@ -117,3 +325,221 @@
     width: min(280px, 86vw);
   }
 }
+
+/* ─── Skills Button ────────────────────────────────────────────────────── */
+#skills-btn {
+  position: fixed;
+  top: 9.5rem;
+  right: 1rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  background: rgba(13, 27, 42, 0.85);
+  border: 1.5px solid rgba(100, 180, 255, 0.35);
+  color: #e0e8ff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(6px);
+}
+#skills-btn:hover {
+  background: rgba(30, 60, 100, 0.9);
+  border-color: rgba(100, 180, 255, 0.7);
+}
+
+/* ─── Skills Panel ─────────────────────────────────────────────────────── */
+#skills-panel {
+  position: fixed;
+  top: 12rem;
+  right: 1rem;
+  width: 290px;
+  background: rgba(13, 27, 42, 0.92);
+  border: 1px solid rgba(100, 180, 255, 0.25);
+  border-radius: 12px;
+  padding: 14px 14px 16px;
+  z-index: 30;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  font-family: 'Segoe UI', sans-serif;
+  color: #e0e8ff;
+}
+
+.skills-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #64b4ff;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* ─── Slot row ─────────────────────────────────────────────────────────── */
+.skill-slot-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.skill-slot {
+  position: relative;
+  width: 115px;
+  height: 70px;
+  background: rgba(100, 180, 255, 0.08);
+  border: 2px solid rgba(100, 180, 255, 0.4);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+
+.skill-slot-badge {
+  position: absolute;
+  top: 5px;
+  left: 7px;
+  background: #1a3a5c;
+  border: 1px solid #64b4ff;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #64b4ff;
+  padding: 1px 5px;
+  font-family: monospace;
+}
+
+.skill-slot-icon {
+  font-size: 20px;
+  margin-top: 6px;
+}
+
+.skill-slot-name {
+  font-size: 10px;
+  color: #c0d8f0;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ─── Divider & label ──────────────────────────────────────────────────── */
+.skills-divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 8px 0;
+}
+
+.skills-list-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #6a8aaa;
+  margin-bottom: 6px;
+}
+
+/* ─── Skill cards ──────────────────────────────────────────────────────── */
+.skill-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  position: relative;
+}
+.skill-card:hover {
+  background: rgba(100, 180, 255, 0.1);
+  border-color: rgba(100, 180, 255, 0.4);
+}
+
+.skill-card-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.skill-card-info {
+  flex: 1;
+}
+
+.skill-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ddeeff;
+}
+
+.skill-card-desc {
+  font-size: 10px;
+  color: #6a8aaa;
+  margin-top: 1px;
+}
+
+/* ─── Active tags ──────────────────────────────────────────────────────── */
+.active-tag {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+.tag-q {
+  background: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+  border: 1px solid #3b82f6;
+}
+.tag-e {
+  background: rgba(168, 85, 247, 0.3);
+  color: #d8b4fe;
+  border: 1px solid #a855f7;
+}
+.tag-hidden {
+  visibility: hidden;
+}
+
+/* ─── Assign popup ─────────────────────────────────────────────────────── */
+.skill-assign-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: rgba(13, 27, 42, 0.97);
+  border: 1px solid rgba(100, 180, 255, 0.35);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 40;
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+.skill-assign-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s;
+}
+.skill-assign-btn.slot-q {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+.skill-assign-btn.slot-q:hover { background: rgba(59, 130, 246, 0.4); }
+.skill-assign-btn.slot-e {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+  color: #d8b4fe;
+}
+.skill-assign-btn.slot-e:hover { background: rgba(168, 85, 247, 0.4); }

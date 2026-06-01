@@ -113,23 +113,30 @@ export function computeShotVelocity(origin, target, power, tuning = SHOT, timing
   const cos = Math.cos(angleRad);
   const sin = Math.sin(angleRad);
   const tan = Math.tan(angleRad);
+  // Equação da física de projéctil resolvida para a velocidade ideal que acerta no aro
   const denominator = 2 * cos * cos * (distance * tan - deltaY);
   const safeDenominator = Math.max(0.001, denominator);
   const idealSpeed = Math.sqrt((g * distance * distance) / safeDenominator);
   const timingWindow = timingWindowOverride ?? getShotTimingWindow(distance, tuning);
-  const speed = idealSpeed;
+  let speed = idealSpeed;
   let horizontalError = 0;
   const isPerfect = power >= timingWindow.min && power <= timingWindow.max;
 
   if (isPerfect) {
-    horizontalError = 0;
+    horizontalError = 0; // tiro perfeito: sem desvio horizontal
   } else {
+    // Quanto mais longe da janela perfeita, maior o desvio (até maxHorizontalErrorDeg)
     const center = Math.max(0.001, timingWindow.center);
     const missFactor = THREE.MathUtils.clamp(Math.abs(power - center) / center, 0, 1);
     horizontalError = THREE.MathUtils.degToRad(tuning.maxHorizontalErrorDeg) * missFactor;
-    horizontalError *= Math.random() < 0.5 ? -1 : 1;
+    horizontalError *= Math.random() < 0.5 ? -1 : 1; // desvio aleatório para esquerda ou direita
+    // Variação de velocidade para não-perfeitos: ±4% consoante o miss.
+    // Power abaixo da janela → bola cai curta; acima → bola passa por cima.
+    const signedMiss = power < timingWindow.center ? -1 : 1;
+    speed = idealSpeed * (1 + signedMiss * missFactor * 0.04);
   }
 
+  // Rodar o vector horizontal pelo erro — aplica o desvio lateral
   horizontal.applyAxisAngle(new THREE.Vector3(0, 1, 0), horizontalError);
 
   return {

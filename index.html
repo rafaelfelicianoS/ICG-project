@@ -25,6 +25,29 @@
 
       <div id="zone-indicator">ZONA DE 2 PONTOS</div>
       <div id="day-night-badge">DIA</div>
+      <button id="reset-btn" type="button" aria-label="Novo jogo">NOVO JOGO</button>
+      <button id="mode-btn" type="button" aria-label="Mudar modo de jogo">MODO</button>
+
+      <!-- Seletor de modo de jogo -->
+      <div id="mode-panel" class="hidden">
+        <h2>Modo de Jogo</h2>
+        <button class="mode-option active" data-mode="FREE_PLAY">Jogo Livre</button>
+        <button class="mode-option" data-mode="FREE_THROW">Lances Livres (10)</button>
+        <button class="mode-option" data-mode="THREE_POINT_CONTEST">Concurso de 3PT</button>
+      </div>
+
+      <!-- Painel de resultado no fim de um modo -->
+      <div id="result-panel" class="hidden">
+        <h2 id="result-title">Resultado</h2>
+        <p id="result-body"></p>
+        <button id="result-play-again" type="button">Jogar de Novo</button>
+      </div>
+
+      <!-- HUD específico para modos com contador de tentativas / timer -->
+      <div id="mode-hud" class="hidden">
+        <div id="mode-hud-label"></div>
+        <div id="mode-hud-value"></div>
+      </div>
       <button id="customize-btn" type="button" aria-label="Abrir personalizacao">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -53,6 +76,16 @@
         </div>
 
         <div class="custom-section">
+          <span>Sapatilhas</span>
+          <div class="color-palette" id="shoes-colors"></div>
+        </div>
+
+        <div class="custom-section">
+          <span>Aro</span>
+          <div class="color-palette" id="rim-colors"></div>
+        </div>
+
+        <div class="custom-section">
           <span>Numero</span>
           <div class="number-picker">
             <button id="num-down" type="button">-</button>
@@ -73,15 +106,21 @@
 
       <div id="feedback-layer"></div>
       <div id="flash-overlay"></div>
+      <div id="debug-overlay" class="hidden"></div>
 
       <div id="controls-panel">
         <h2>Controlos (H para mostrar/esconder)</h2>
         <p><strong>WASD</strong>: mover (relativo a camera)</p>
         <p><strong>Botao Esquerdo</strong>: segurar para carregar / largar para lancar</p>
+        <p><strong>Q</strong>: step-back (recuar com bola)</p>
+        <p><strong>E</strong>: ankle breaker (finta lateral)</p>
+        <p><strong>F</strong>: passe para alvo mais proximo</p>
         <p><strong>P</strong>: alternar 3a/1a pessoa</p>
         <p><strong>C</strong>: reset da camara (3a pessoa)</p>
         <p><strong>T</strong>: alternar dia/noite</p>
         <p><strong>R</strong>: recuperar bola manualmente</p>
+        <p><strong>N</strong>: novo jogo (reset pontuacao)</p>
+        <p><strong>G</strong>: debug de lancamentos (overlay)</p>
       </div>
     </div>
 

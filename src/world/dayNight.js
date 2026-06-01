@@ -26,14 +26,18 @@ export function createDayNightController(scene, lightPoleAnchors) {
   const dayAmbientColor = new THREE.Color("#d4e9ff");
   const nightAmbientColor = new THREE.Color("#1A1A3E");
 
+  // Luz ambiente: ilumina tudo uniformemente, sem sombras — simula luz difusa do céu
   const ambientLight = new THREE.AmbientLight(0xd4e9ff, 0.5);
   scene.add(ambientLight);
 
+  // Luz solar: DirectionalLight simula raios paralelos do sol com sombras
   const sunLight = new THREE.DirectionalLight(0xfff5de, 0.9);
   sunLight.position.set(18, 40, -50);
   sunLight.target.position.set(0, 0, 0);
   sunLight.castShadow = true;
+  // Shadow map 1024x1024: resolução das sombras do sol
   sunLight.shadow.mapSize.set(1024, 1024);
+  // Frustum da câmara de sombra — cobre o campo inteiro (±24m)
   sunLight.shadow.camera.left = -24;
   sunLight.shadow.camera.right = 24;
   sunLight.shadow.camera.top = 24;
@@ -43,12 +47,14 @@ export function createDayNightController(scene, lightPoleAnchors) {
   scene.add(sunLight);
   scene.add(sunLight.target);
 
+  // Luz lunar: intensidade 0 de dia, sobe à noite — cor azulada fria
   const moonLight = new THREE.DirectionalLight(0xaab8d4, 0);
   moonLight.position.set(-20, -10, -45);
   moonLight.target.position.set(0, 0, 0);
   scene.add(moonLight);
   scene.add(moonLight.target);
 
+  // SpotLights dos postes: acendem à noite (intensidade 0 de dia → 1.8 à noite)
   const spotLights = lightPoleAnchors.map((anchor) => {
     const spot = new THREE.SpotLight(0xfff3de, 0, 52, 0.55, 0.38, 1.2);
     spot.position.copy(anchor.position);
@@ -60,14 +66,17 @@ export function createDayNightController(scene, lightPoleAnchors) {
     return { light: spot, anchor };
   });
 
+  // t=0: dia completo | t=1: noite completa
+  // Cada luz tem o seu próprio fade com timings diferentes para transição realista
   function applyState(t) {
     const dayToNight = clamp01(t);
-    const sunFade = 1 - smoothRange(dayToNight, 0.3, 0.62);
-    const moonFade = smoothRange(dayToNight, 0.45, 0.72);
-    const spotFade = smoothRange(dayToNight, 0.7, 1.0);
+    const sunFade  = 1 - smoothRange(dayToNight, 0.3, 0.62);  // sol desaparece a 30%-62%
+    const moonFade = smoothRange(dayToNight, 0.45, 0.72);      // lua aparece a 45%-72%
+    const spotFade = smoothRange(dayToNight, 0.7, 1.0);        // postes acendem a 70%-100%
 
     sky.setDayNightBlend(dayToNight);
 
+    // Interpolar cor do nevoeiro entre azul-dia e azul-escuro-noite
     if (scene.fog) {
       scene.fog.color.copy(dayFog).lerp(nightFog, dayToNight);
     } else {
@@ -77,6 +86,7 @@ export function createDayNightController(scene, lightPoleAnchors) {
     ambientLight.color.copy(dayAmbientColor).lerp(nightAmbientColor, dayToNight);
     ambientLight.intensity = THREE.MathUtils.lerp(0.5, 0.15, dayToNight);
 
+    // Sol e lua seguem as posições dos objectos visuais no céu
     sunLight.position.copy(sky.sun.position);
     sunLight.intensity = 0.9 * sunFade;
 
@@ -85,7 +95,7 @@ export function createDayNightController(scene, lightPoleAnchors) {
 
     for (const { light, anchor } of spotLights) {
       light.intensity = 1.8 * spotFade;
-      anchor.head.material.emissiveIntensity = 0.35 + spotFade * 1.45;
+      anchor.head.material.emissiveIntensity = 0.35 + spotFade * 1.45; // cabeça do poste brilha
     }
   }
 

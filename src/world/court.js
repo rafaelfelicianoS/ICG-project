@@ -133,11 +133,20 @@ function createLinesTexture() {
     ctx.lineTo(mapX(paintHalfWidth), mapY(freeThrowZ));
     ctx.stroke();
 
+    // Ângulo onde o arco toca as linhas laterais (x = ±sideLineX).
+    // No canvas 2D o eixo Y está invertido, por isso o ângulo de tangência é
+    // medido a partir da direita (eixo +X do canvas) no sentido horário.
+    // acos devolve o ângulo em [0, π] — que é exactamente o semi-arco esquerdo/direito.
+    const halfAngle = Math.acos(sideLineX / COURT.threePointRadius);
     ctx.beginPath();
     if (sign > 0) {
-      ctx.arc(mapX(rim.x), mapY(rim.z), radiusToPx(COURT.threePointRadius), Math.PI, Math.PI * 2);
+      // Aro no topo do canvas: o arco vira para baixo (interior do campo)
+      // → de halfAngle até π - halfAngle, passando por π/2 (ponto mais baixo)
+      ctx.arc(mapX(rim.x), mapY(rim.z), radiusToPx(COURT.threePointRadius), halfAngle, Math.PI - halfAngle);
     } else {
-      ctx.arc(mapX(rim.x), mapY(rim.z), radiusToPx(COURT.threePointRadius), 0, Math.PI);
+      // Aro na base do canvas: o arco vira para cima
+      // → de π + halfAngle até 2π - halfAngle, passando por 3π/2 (ponto mais alto)
+      ctx.arc(mapX(rim.x), mapY(rim.z), radiusToPx(COURT.threePointRadius), Math.PI + halfAngle, 2 * Math.PI - halfAngle);
     }
     ctx.stroke();
 
@@ -207,9 +216,10 @@ function createHoopGroup(sign) {
   arm.receiveShadow = true;
   hoop.add(arm);
 
+  const rimMaterial = new THREE.MeshStandardMaterial({ color: 0xdf4d2a, metalness: 0.25, roughness: 0.45 });
   const rim = new THREE.Mesh(
     new THREE.TorusGeometry(COURT.rimRadius, COURT.rimTubeRadius, 18, 48),
-    new THREE.MeshStandardMaterial({ color: 0xdf4d2a, metalness: 0.25, roughness: 0.45 })
+    rimMaterial
   );
   rim.rotation.x = Math.PI / 2;
   rim.position.set(rimCenter.x, rimCenter.y, rimCenter.z);
@@ -231,6 +241,7 @@ function createHoopGroup(sign) {
       backboardZ - sign * (COURT.backboardDepth * 0.5 + 0.01)
     ),
     net,
+    rimMaterial,
   };
 }
 
@@ -362,6 +373,12 @@ export function createCourt(scene) {
     return touched;
   }
 
+  // Muda a cor do aro nos dois cestos em simultâneo
+  function setRimColor(colorValue) {
+    hoopNorth.rimMaterial.color.set(colorValue);
+    hoopSouth.rimMaterial.color.set(colorValue);
+  }
+
   return {
     group,
     hoops: [hoopNorth, hoopSouth],
@@ -369,6 +386,7 @@ export function createCourt(scene) {
     update,
     disturbNet,
     interactBallWithNets,
+    setRimColor,
     bounds: {
       minX: -COURT.halfWidth + 0.55,
       maxX: COURT.halfWidth - 0.55,

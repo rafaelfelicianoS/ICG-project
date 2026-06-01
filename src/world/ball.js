@@ -89,13 +89,16 @@ export function createDribbleState() {
   };
 }
 
+// Animação de dribble: puramente visual — o Cannon.js está desligado durante este modo
 export function updateDribble(dt, playerPose, ballMesh, dribbleState) {
   const targetFrequency = playerPose.isMoving ? BALL.dribbleMoveFrequency : BALL.dribbleBaseFrequency;
   dribbleState.time += dt * targetFrequency * Math.PI * 2;
 
+  // |sin| cria um arco que toca sempre o chão e sobe — simula o bounce da bola
   const wave = Math.abs(Math.sin(dribbleState.time));
   const y = THREE.MathUtils.lerp(BALL.dribbleMinY, BALL.dribbleMaxY, wave);
 
+  // Offset da bola relativamente ao jogador, rodado pelo yaw (acompanha a orientação)
   const offset = new THREE.Vector3(0.5, y, 0.66);
   offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), playerPose.yaw);
 
@@ -107,13 +110,15 @@ export function updateDribble(dt, playerPose, ballMesh, dribbleState) {
     dribbleState.delayedZ = targetZ;
   }
 
+  // Suavização da posição horizontal — a bola tem ligeiro atraso ao seguir o jogador
   const positionAlpha = 1 - Math.exp(-dt * 12);
   dribbleState.delayedX = THREE.MathUtils.lerp(dribbleState.delayedX, targetX, positionAlpha);
   dribbleState.delayedZ = THREE.MathUtils.lerp(dribbleState.delayedZ, targetZ, positionAlpha);
 
   ballMesh.position.set(dribbleState.delayedX, y, dribbleState.delayedZ);
-  ballMesh.rotation.x += dt * 8;
+  ballMesh.rotation.x += dt * 8; // rotação visual da bola enquanto dribla
 
+  // Detectar momento em que a bola toca o chão para tocar o som de dribble
   const nearFloor = y <= BALL.dribbleMinY + 0.02;
   const hitGround = nearFloor && !dribbleState.wasNearFloor;
   dribbleState.wasNearFloor = nearFloor;

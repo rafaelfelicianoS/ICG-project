@@ -1,6 +1,14 @@
 import { COURT } from "../core/constants.js";
 import { THREE } from "../core/deps.js";
 
+// Shared conifer cone materials — defined once, reused across all trees
+const CONE_MATS = [
+  new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.85, metalness: 0 }),
+  new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.85, metalness: 0 }),
+  new THREE.MeshStandardMaterial({ color: 0x388e3c, roughness: 0.85, metalness: 0 }),
+  new THREE.MeshStandardMaterial({ color: 0x43a047, roughness: 0.85, metalness: 0 }),
+];
+
 function createBench() {
   const bench = new THREE.Group();
   const wood = new THREE.MeshStandardMaterial({ color: 0x8b5e3c, roughness: 0.85, metalness: 0 });
@@ -55,50 +63,40 @@ function createBench() {
   return bench;
 }
 
-function createRealisticTree(position, phase) {
+function createConiferTree(position, phase) {
   const tree = new THREE.Group();
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2f0a, roughness: 0.9, metalness: 0 });
-  const leafDark = new THREE.MeshStandardMaterial({ color: 0x1b5e20, roughness: 0.82, metalness: 0 });
-  const leafMid = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.8, metalness: 0 });
-  const leafLight = new THREE.MeshStandardMaterial({ color: 0x388e3c, roughness: 0.78, metalness: 0 });
 
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 3.5, 8), trunkMat);
-  trunk.position.y = 1.75;
+  // Random height scale per tree for visual variety
+  const heightScale = 0.75 + Math.random() * 0.55;
+  tree.scale.y = heightScale;
+  tree.rotation.y = Math.random() * Math.PI * 2;
+
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2f0a, roughness: 0.9, metalness: 0 });
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 4, 7), trunkMat);
+  trunk.position.y = 2;
   trunk.castShadow = true;
   trunk.receiveShadow = true;
   tree.add(trunk);
 
-  for (const branchCfg of [
-    { x: 0.16, y: 2.2, z: 0, rx: -0.75, rz: 0.4 },
-    { x: -0.14, y: 2.1, z: 0.1, rx: -0.68, rz: -0.45 },
-    { x: 0.05, y: 2.35, z: -0.1, rx: -0.6, rz: 0.18 },
-  ]) {
-    const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 1.2, 6), trunkMat);
-    branch.position.set(branchCfg.x, branchCfg.y, branchCfg.z);
-    branch.rotation.x = branchCfg.rx;
-    branch.rotation.z = branchCfg.rz;
-    branch.castShadow = true;
-    tree.add(branch);
-  }
+  // Cone layers bottom to top — darker at base, lighter at tip
+  const layers = [
+    { radius: 2.8, height: 2.2, y: 2.5 },
+    { radius: 2.2, height: 2.0, y: 3.8 },
+    { radius: 1.6, height: 1.8, y: 5.0 },
+    { radius: 1.0, height: 1.6, y: 6.0 },
+  ];
 
   const topGroup = new THREE.Group();
-  topGroup.position.y = 0;
   tree.add(topGroup);
 
-  const crownPrimary = new THREE.Mesh(new THREE.SphereGeometry(1.8, 10, 10), leafDark);
-  crownPrimary.position.y = 3.8;
-  crownPrimary.castShadow = true;
-  topGroup.add(crownPrimary);
-
-  const crownSecondary = new THREE.Mesh(new THREE.SphereGeometry(1.4, 8, 8), leafMid);
-  crownSecondary.position.set(0.35, 4.8, -0.25);
-  crownSecondary.castShadow = true;
-  topGroup.add(crownSecondary);
-
-  const crownTertiary = new THREE.Mesh(new THREE.SphereGeometry(1.0, 8, 8), leafLight);
-  crownTertiary.position.set(-0.4, 5.6, 0.18);
-  crownTertiary.castShadow = true;
-  topGroup.add(crownTertiary);
+  for (let li = 0; li < layers.length; li += 1) {
+    const layer = layers[li];
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(layer.radius, layer.height, 7), CONE_MATS[li]);
+    cone.position.y = layer.y;
+    cone.castShadow = true;
+    cone.receiveShadow = true;
+    topGroup.add(cone);
+  }
 
   tree.position.copy(position);
   tree.userData.phase = phase;
@@ -144,10 +142,17 @@ function createBirdFlock(parent) {
   parent.add(flockGroup);
 
   const birds = [];
-  const count = 2 + Math.floor(Math.random() * 2);
+  const count = 5 + Math.floor(Math.random() * 4); // 5–8 birds
   for (let i = 0; i < count; i += 1) {
     const bird = createBird();
-    bird.group.position.set(i * 1.25, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.8);
+    // V-formation: birds spread back and alternating sides
+    const side = i % 2 === 0 ? 1 : -1;
+    const row = Math.floor(i / 2);
+    bird.group.position.set(
+      row * -1.5,
+      (Math.random() - 0.5) * 0.3,
+      side * row * 0.7
+    );
     flockGroup.add(bird.group);
     birds.push(bird);
   }
@@ -166,11 +171,17 @@ function createBirdFlock(parent) {
 function resetFlockState(flock, side) {
   flock.active = true;
   flock.dir = side === "left" ? 1 : -1;
-  flock.speed = 4 + Math.random() * 3;
-  flock.altitude = 12 + Math.random() * 10;
-  flock.zDrift = (Math.random() - 0.5) * 8;
+  flock.speed = 4 + Math.random() * 4;
+  flock.altitude = 14 + Math.random() * 10;
+  flock.zDrift = (Math.random() - 0.5) * 10;
   flock.flockGroup.visible = true;
-  flock.flockGroup.position.set(side === "left" ? -50 : 50, flock.altitude, flock.zDrift);
+  // Rotate flock group to face direction of travel
+  flock.flockGroup.rotation.y = flock.dir > 0 ? 0 : Math.PI;
+  flock.flockGroup.position.set(
+    side === "left" ? -55 : 55,
+    flock.altitude,
+    flock.zDrift
+  );
 }
 
 export function createPark(group) {
@@ -179,7 +190,7 @@ export function createPark(group) {
   group.add(parkRoot);
 
   const grass = new THREE.Mesh(
-    new THREE.PlaneGeometry(60, 60),
+    new THREE.PlaneGeometry(200, 200),
     new THREE.MeshStandardMaterial({ color: 0x27ae60, roughness: 0.95, metalness: 0 })
   );
   grass.rotation.x = -Math.PI / 2;
@@ -202,37 +213,58 @@ export function createPark(group) {
   }
 
   const trees = [];
-  const treeCount = 12;
-  for (let i = 0; i < treeCount; i += 1) {
-    const angle = (i / treeCount) * Math.PI * 2;
-    const radius = 23 + (i % 3) * 1.2;
+
+  // Inner ring — 36 trees, dense, radius 22–30
+  const innerCount = 36;
+  for (let i = 0; i < innerCount; i += 1) {
+    const baseAngle = (i / innerCount) * Math.PI * 2;
+    const jitter = (Math.random() - 0.5) * (Math.PI * 2 / innerCount) * 0.8;
+    const angle = baseAngle + jitter;
+    const radius = 22 + Math.random() * 8;
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-    const tree = createRealisticTree(new THREE.Vector3(x, 0, z), Math.random() * Math.PI * 2);
+    const tree = createConiferTree(new THREE.Vector3(x, 0, z), Math.random() * Math.PI * 2);
     parkRoot.add(tree);
     trees.push(tree);
   }
 
-  const flocks = [createBirdFlock(parkRoot), createBirdFlock(parkRoot)];
-  let birdSpawnTimer = 8 + Math.random() * 7;
+  // Outer ring — 16 trees, sparse, radius 32–38 for depth layering
+  const outerCount = 16;
+  for (let i = 0; i < outerCount; i += 1) {
+    const baseAngle = (i / outerCount) * Math.PI * 2;
+    const jitter = (Math.random() - 0.5) * (Math.PI * 2 / outerCount) * 0.6;
+    const angle = baseAngle + jitter;
+    const radius = 32 + Math.random() * 6;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const tree = createConiferTree(new THREE.Vector3(x, 0, z), Math.random() * Math.PI * 2);
+    parkRoot.add(tree);
+    trees.push(tree);
+  }
+
+  const flocks = [createBirdFlock(parkRoot), createBirdFlock(parkRoot), createBirdFlock(parkRoot)];
+  let birdSpawnTimer = 5 + Math.random() * 5;
   let time = 0;
 
   function update(delta) {
     time += delta;
 
+    // Vento: cada árvore tem uma phase diferente para não balançarem todas em sincronismo
+    // sin(tempo + phase) garante que umas vão para a frente enquanto outras vão para trás
     for (const tree of trees) {
       const sway = Math.sin(time * 0.8 + tree.userData.phase) * 0.03;
       tree.userData.topGroup.rotation.x = sway;
       tree.userData.topGroup.rotation.z = sway * 0.6;
     }
 
+    // Bandos de pássaros: spawn aleatório a cada 5-10s, voam de um lado ao outro
     birdSpawnTimer -= delta;
     if (birdSpawnTimer <= 0) {
       const inactive = flocks.find((f) => !f.active);
       if (inactive) {
         resetFlockState(inactive, Math.random() < 0.5 ? "left" : "right");
       }
-      birdSpawnTimer = 8 + Math.random() * 7;
+      birdSpawnTimer = 5 + Math.random() * 5;
     }
 
     for (const flock of flocks) {
@@ -241,8 +273,9 @@ export function createPark(group) {
       }
 
       flock.flockGroup.position.x += flock.dir * flock.speed * delta;
-      flock.flockGroup.position.z += Math.sin(time * 0.35) * 0.2 * delta;
+      flock.flockGroup.position.z += Math.sin(time * 0.35) * 0.2 * delta; // deriva suave em Z
 
+      // Asas: sin(tempo + phase) — cada pássaro tem phase diferente para não baterem ao mesmo tempo
       for (const bird of flock.birds) {
         const wingAngle = Math.sin(time * 6 + bird.phase) * 0.5;
         bird.leftWingPivot.rotation.z = wingAngle;

@@ -57,10 +57,12 @@ function fillRingAttribute(attributeArray, ringPoints) {
   }
 }
 
+// Rede simulada com Verlet Integration — sistema de pontos ligados por restrições de distância
+// Não usa o Cannon.js: é uma simulação de tecido feita de raiz
 export function createHoopNet(rimCenter, rimRadius) {
   const netGroup = new THREE.Group();
-  const strandCount = 18;
-  const ringCount = 10;
+  const strandCount = 18; // fios verticais à volta do aro
+  const ringCount = 10;   // anéis horizontais do topo até à base
   const netHeight = 0.72;
   const topYOffset = -0.02;
   const topRadius = rimRadius * 0.84;
@@ -173,22 +175,25 @@ export function createHoopNet(rimCenter, rimRadius) {
 
   function integrate(stepDelta) {
     const stepSq = stepDelta * stepDelta;
-    for (let ring = 1; ring < ringCount; ring += 1) {
+    for (let ring = 1; ring < ringCount; ring += 1) { // anel 0 está pregado, começa no 1
       for (let strand = 0; strand < strandCount; strand += 1) {
         const point = points[ring][strand];
         if (point.pinned) {
           continue;
         }
 
+        // Velocidade implícita do Verlet: diferença entre posição actual e anterior
         const vx = (point.position.x - point.previous.x) * drag;
         const vy = (point.position.y - point.previous.y) * drag;
         const vz = (point.position.z - point.previous.z) * drag;
 
         point.previous.copy(point.position);
+        // Nova posição = actual + velocidade - gravidade (integração de Verlet)
         point.position.x += vx;
         point.position.y += vy - gravity * stepSq;
         point.position.z += vz;
 
+        // restPull: atrai levemente o ponto à posição de repouso → rede amorte naturalmente
         point.position.lerp(point.rest, restPull);
       }
     }
@@ -223,6 +228,8 @@ export function createHoopNet(rimCenter, rimRadius) {
     syncLines();
   }
 
+  // Perturbar a rede externamente (ex: bola bate no aro → rede ondula)
+  // Aplica impulso radial+descendente a pontos dentro do raio de influência
   function disturb(worldPosition, strength = 0.1) {
     const radius = rimRadius * 1.8;
     const radial = new THREE.Vector3();
@@ -237,6 +244,7 @@ export function createHoopNet(rimCenter, rimRadius) {
           continue;
         }
 
+        // Falloff: pontos mais longe recebem impulso menor
         const falloff = 1 - distance / radius;
         radial.copy(point.position).sub(rimCenterVec);
         radial.y = 0;
@@ -246,8 +254,10 @@ export function createHoopNet(rimCenter, rimRadius) {
           radial.normalize();
         }
 
+        // Impulso para fora + para baixo — empurra a rede radialmente e faz cair
         impulse.copy(radial).multiplyScalar(strength * (0.3 + falloff * 0.8));
         impulse.y -= strength * (0.35 + falloff * 1.1);
+        // Modificar previous em vez de position → o Verlet vai calcular a velocidade correcta
         point.previous.sub(impulse);
       }
     }

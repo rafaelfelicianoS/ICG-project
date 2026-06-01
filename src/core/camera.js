@@ -67,7 +67,7 @@ export function createFollowCamera(domElement) {
       return;
     }
 
-    fpYaw += event.movementX * 0.002;
+    fpYaw -= event.movementX * 0.002;
     fpPitch -= event.movementY * 0.002;
     fpPitch = THREE.MathUtils.clamp(fpPitch, -Math.PI / 3, Math.PI / 3);
   }

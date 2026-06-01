@@ -46,7 +46,7 @@ export const BALL = {
   dribbleBaseFrequency: 1.5,
   dribbleMoveFrequency: 2,
   recoverSpeedThreshold: 0.5,
-  autoRecoverTimeout: 8,
+  autoRecoverTimeout: 3,
 };
 
 export const PHYSICS = {
@@ -69,14 +69,15 @@ export const SHOT = {
   closeAimDistance: 3.2,
   closeAimBackOffset: 0.28,
   closeAimYOffset: 0.12,
-  maxHorizontalErrorDeg: 3,
+  maxHorizontalErrorDeg: 1.5,
   nearDistance: 3,
   farDistance: 8.5,
-  perfectWindowNear: 0.17,
-  perfectWindowFar: 0.06,
+  perfectWindowNear: 0.22,
+  perfectWindowFar: 0.10,
   maxHorizontalErrorNearDeg: 2.2,
   maxHorizontalErrorFarDeg: 6.2,
   shootReleaseNormalized: 0.35,
+  faceHoopSpeed: 12, // rad/s — how fast player rotates to face hoop on shot charge
 };
 
 export const PLAYER_STATES = Object.freeze({
@@ -85,7 +86,25 @@ export const PLAYER_STATES = Object.freeze({
   DRIBBLING: "DRIBBLING",
   SHOOTING: "SHOOTING",
   CELEBRATING: "CELEBRATING",
+  STEP_BACK: "STEP_BACK",
+  ANKLE_BREAKER: "ANKLE_BREAKER",
 });
+
+// Modos de jogo disponíveis
+export const GAME_MODES = Object.freeze({
+  FREE_PLAY: "FREE_PLAY",       // Jogo livre sem limite
+  FREE_THROW: "FREE_THROW",     // 10 lances livres, jogador fixo na linha
+  THREE_POINT_CONTEST: "THREE_POINT_CONTEST", // Concurso de 3 Pontos: 5 estações × 5 bolas
+});
+
+// Posições das 5 estações do Concurso de 3 Pontos (raio 7m do aro sul, x=0 z=-12.38)
+export const THREE_POINT_CONTEST_STATIONS = [
+  { name: "Canto Esquerdo", x: -6.76, z: -10.57, yaw: 1.833 },
+  { name: "Ala Esquerda",   x: -4.95, z: -7.43,  yaw: 2.356 },
+  { name: "Topo",           x:  0,    z: -5.38,  yaw: Math.PI },
+  { name: "Ala Direita",    x:  4.95, z: -7.43,  yaw: -2.356 },
+  { name: "Canto Direito",  x:  6.76, z: -10.57, yaw: -1.833 },
+];
 
 export function getBackboardZ(sign) {
   return sign * (COURT.halfLength - COURT.backboardOffsetFromBaseline);
@@ -98,3 +117,15 @@ export function getRimCenter(sign) {
     z: getBackboardZ(sign) - sign * COURT.hoopOffsetFromBackboard,
   };
 }
+
+// ─── Skill constants ──────────────────────────────────────────────────────────
+export const SKILLS = {
+  stepBackCooldown: 4.0,   // seconds cooldown after Step Back
+  stepBackTpDist:   2.5,   // metres player teleports backward
+  ankleCooldown:    3.0,   // seconds cooldown after Ankle Breaker
+  ankleFakeDist:    0.8,   // metres left (fake phase)
+  ankleCrossDist:   1.2,   // metres right (crossover phase)
+  spinMoveCooldown:    3.5,   // seconds cooldown after Spin Move
+  spinMoveDist:        1.8,   // metres forward
+  spinMoveLightColor:  0x9933ff, // purple point light colour
+};
